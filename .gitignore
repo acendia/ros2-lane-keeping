@@ -20,3 +20,6 @@ __pycache__/
 *.mcap
 *.bag
 .gazebo/
+
+# Local test artifacts
+artifacts/

@@ -1,9 +1,10 @@
 # Environment
 
-**Status: WORKSPACE BUILDS; CAMERA CHECK NOT VERIFIED.** The ROS workspace
-builds in the Docker environment below. No Gazebo camera frames have been
-received yet, so the Milestone 0 gate has not passed and Milestone 1 must not
-start.
+**Status: CAMERA GATE PASSED IN DOCKER, NOT IN THE PLANNED VM.** The workspace
+builds and Gazebo publishes real camera frames through ROS 2 in the Docker
+environment below. The target Ubuntu 24.04 ARM64 VM has not been tested.
+Milestone 1 may start on the strength of the Docker result, but every later
+result must keep the Docker deviation labelled.
 
 ## Target environment
 
@@ -23,8 +24,8 @@ image was available on the machine. This is a deviation from the plan. Results
 measured in Docker must be labelled as such and must not be presented as VM
 results.
 
-If the Docker environment cannot render camera frames, I will stop at the
-Milestone 0 gate and record the exact error rather than proceeding to the road.
+The Docker environment did render camera frames, so the Milestone 0 gate was
+not blocked. The VM camera check remains an open verification item.
 
 ## Installation
 
@@ -59,29 +60,64 @@ source install/setup.bash
 
 ## Camera feasibility check
 
-Not yet run. The check must demonstrate:
+The check uses [`tests/gazebo/camera_check.sdf`](../tests/gazebo/camera_check.sdf),
+a static scene with a white ground stripe and blue, green, and red boxes in
+front of a 1.3 m high camera. The camera renders 640 × 360 at 15 Hz.
 
-- Gazebo starts headlessly.
-- A test camera publishes actual image frames through ROS 2.
-- The image dimensions and frame rate are usable.
+Run it with:
+
+```bash
+tools/run_camera_check.sh
+```
+
+The script starts Gazebo headlessly, bridges the Gazebo image topic to ROS 2,
+runs [`tools/camera_probe.py`](../tools/camera_probe.py), and saves one frame.
+The probe exits non-zero when frames are missing, the dimensions are wrong, or
+the image is nearly uniform.
+
+### Gate result
+
+Measured on 2026-11-13 in the Docker container:
+
+| Check | Result |
+|---|---|
+| Gazebo starts headlessly | Yes, `gz sim -s -r --headless-rendering` |
+| Camera publishes through ROS 2 | Yes, 139 frames in a 10 s probe |
+| Gazebo image topic | `/camera_check/image` |
+| ROS image topic | `/camera_check/image` |
+| Camera info topic | `/camera_check/camera_info` |
+| Image dimensions | 640 × 360 |
+| Frame rate, message timestamps | 15.15 Hz |
+| Frame rate, wall clock | 13.93 Hz over 9.906 s |
+| Pixel contrast | BGR standard deviation 65.70 / 51.56 / 42.60 |
+| Probe verdict | `valid: true` |
+
+![Camera check frame](images/camera_check.png)
+
+The frame shows the white stripe and all three boxes with correct colours and
+shadows. This is a real rendered frame, not a placeholder image.
+
+**Limit:** this is a Docker result on the macOS host. It does not replace the
+VM check required by the plan.
 
 ## Observed results
-
-Measured on 2026-11-13 in the Docker container.
 
 | Item | Observed value |
 |---|---|
 | Architecture | aarch64 |
 | Ubuntu version | Ubuntu 24.04.5 LTS |
 | ROS 2 distribution | Jazzy, `ros-jazzy-ros-base` 0.11.0, `ros-jazzy-ros2cli` 0.32.13 |
+| ROS–Gazebo bridge | `ros-jazzy-ros-gz` 1.0.24 |
 | Gazebo version | Gazebo Sim 8.15.0 (Harmonic vendor packages) |
 | Python version | 3.12.3 |
-| Camera topic | not measured |
-| Image dimensions | not measured |
-| Frame rate | not measured |
-| Rendering backend | not measured |
+| Rendering engine | OGRE2, EGL 1.5 surfaceless |
+| Rendering backend | Mesa llvmpipe (LLVM 20.1.2), software |
+| Camera topic | Gazebo and ROS `/camera_check/image` |
+| Image dimensions | 640 × 360 |
+| Frame rate | 13.93 Hz wall clock, 15.15 Hz message timestamps |
+| GUI | Not tested; the container has no display |
 
-## Build results
+## Build and test results
 
 ```text
 Starting >>> auto_drive_sim_interfaces
@@ -97,24 +133,38 @@ Summary: 2 packages finished [5.52s]
 `ros2 interface show auto_drive_sim_interfaces/msg/LaneEstimate` prints the
 expected fields.
 
-## Build issues and revisions
+## Failures and revisions
 
 - Initial `colcon build` failed because `catkin_pkg` rejected the maintainer
   email `evangelos@localhost`. I replaced it with the reserved placeholder
   `evangelos.kostakis@example.com` in both `package.xml` files and `setup.py`.
   The build then completed.
+- The first camera-check run failed because `set -u` in the runner conflicted
+  with `/opt/ros/jazzy/setup.bash`. I disabled nounset while sourcing ROS.
+- The first successful probe emitted a NumPy deprecation warning from
+  `float(max(std))`. I changed it to `float(std.max())` and reran the probe.
 
 ## Rendering issues and limitations
 
-None recorded yet.
+- Rendering uses the CPU-only Mesa llvmpipe driver. The wall-clock rate of
+  13.93 Hz is close to the configured 15 Hz, but later tests must use simulation
+  time rather than wall time.
+- Gazebo logged one benign warning from `Ogre2Camera::SetVisibilityMask` about
+  reserved mask bits. It did not affect the frames.
+- The Gazebo GUI is not available in this Docker setup. Only headless operation
+  is supported here.
+- The target VM may use hardware rendering and produce different rates. Do not
+  copy these numbers into VM results.
 
 ## Commands run
 
 ```bash
 docker build --progress=plain -t auto-drive-sim:jazzy-harmonic -f docker/Dockerfile .
-./docker/run.sh bash -lc 'ros2 --version'                      # not a valid Jazzy command
-./docker/run.sh bash -lc 'gz sim --version ... colcon build --symlink-install'
+./docker/run.sh bash -lc 'gz sim --version'
+./docker/run.sh bash -lc 'colcon build --symlink-install'
+./docker/run.sh bash -lc 'tools/run_camera_check.sh'
+./docker/run.sh bash -lc 'LIBGL_ALWAYS_SOFTWARE=1 eglinfo'
 ```
 
-`ros2 --version` failed with `unrecognized arguments: --version`; Jazzy reports
-versions through package metadata instead, which is what the table above uses.
+`ros2 --version` is not accepted by ROS 2 Jazzy; package metadata is used for
+the version table instead.

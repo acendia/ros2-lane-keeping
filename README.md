@@ -4,9 +4,11 @@ A camera-based lane-following simulation for ROS 2 Jazzy and Gazebo Harmonic.
 
 ## Status
 
-Milestone 0 is in progress. The repository skeleton exists, but no Gazebo camera
-check has passed yet. I will not treat the environment as validated or start the
-custom road until that check is recorded in [`docs/environment.md`](docs/environment.md).
+The Milestone 0 camera gate passed in Docker: Gazebo Harmonic runs headlessly
+and publishes real 640 × 360 camera frames through ROS 2 at about 14 Hz. The
+planned Ubuntu 24.04 ARM64 VM has not been tested, and Milestone 1 has not
+started. See [`docs/environment.md`](docs/environment.md) for the measured
+result and the documented Docker deviation.
 
 ## Repository layout
 
