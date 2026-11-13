@@ -4,7 +4,7 @@
   <name>auto_drive_sim</name>
   <version>0.1.0</version>
   <description>Camera-based lane following simulation with Gazebo Harmonic.</description>
-  <maintainer email="evangelos@localhost">Evangelos Kostakis</maintainer>
+  <maintainer email="evangelos.kostakis@example.com">Evangelos Kostakis</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_python</buildtool_depend>

@@ -4,7 +4,7 @@
   <name>auto_drive_sim_interfaces</name>
   <version>0.1.0</version>
   <description>Message definitions for the auto_drive_sim lane-following simulation.</description>
-  <maintainer email="evangelos@localhost">Evangelos Kostakis</maintainer>
+  <maintainer email="evangelos.kostakis@example.com">Evangelos Kostakis</maintainer>
   <license>MIT</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>

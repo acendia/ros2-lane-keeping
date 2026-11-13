@@ -21,7 +21,7 @@ setup(
     install_requires=['setuptools'],
     zip_safe=True,
     maintainer='Evangelos Kostakis',
-    maintainer_email='evangelos@localhost',
+    maintainer_email='evangelos.kostakis@example.com',
     description='Camera-based lane following simulation with Gazebo Harmonic.',
     license='MIT',
     tests_require=['pytest'],

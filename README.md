@@ -40,6 +40,13 @@ ros2 launch auto_drive_sim demo.launch.py gui:=false
 
 The launch file does not exist yet; this is the intended interface.
 
+For the documented Docker development environment:
+
+```bash
+./docker/run.sh                                  # interactive shell
+./docker/run.sh bash -lc 'colcon build --symlink-install'
+```
+
 ## License
 
 MIT. See [`LICENSE`](LICENSE).
