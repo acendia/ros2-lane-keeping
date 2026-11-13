@@ -10,20 +10,21 @@ geometry.
 
 ## Status
 
-Milestone 2 is complete in Docker. The car drives a straight and the east curve
-with manual commands. In the curve run it covered 39.65 m with a maximum
-centerline error of 0.188 m. Steering signs, stopping, camera, and odometry are
-checked. Perception and autonomous control come next. The planned Ubuntu
+Milestone 3 is complete in Docker. The forward camera now produces a lane
+estimate on straights and both curve directions, and rejects blank or no-line
+frames. The next step is the pure-pursuit controller. The planned Ubuntu
 24.04 ARM64 VM is still untested.
 
 What I have measured:
 
 - Camera: 640 × 360, 12.22 Hz wall clock, 14.84 Hz message timestamps.
-- Forward command: 0.5 m/s for 2 s moved the car 0.6355 m.
 - Manual straight + curve: 39.65 m, heading change −1.31 rad, max lane error
   0.188 m.
+- Perception: straight error 0.004 m, right curve +1.066 m, left curve
+  −1.061 m.
+- Live perception: confidence 0.873, error 0.0036 m at the start pose.
 - Track: 134.25 m centerline, 3.5 m lane between the markings.
-- Tests: 15 passed.
+- Tests: 28 passed.
 
 ## Repository layout
 
@@ -80,6 +81,16 @@ ros2 run auto_drive_sim teleop \
   --record /tmp/drive.csv
 ```
 
+## Run lane perception
+
+```bash
+ros2 launch auto_drive_sim perception.launch.py gui:=false
+ros2 topic echo /car/lane_estimate
+```
+
+The debug overlay is on `/car/debug_image`. Saved test frames and the full
+pipeline are documented in [`docs/perception.md`](docs/perception.md).
+
 On a native Ubuntu 24.04 machine with ROS 2 Jazzy and Gazebo Harmonic:
 
 ```bash
@@ -121,9 +132,9 @@ Details are in [`docs/car.md`](docs/car.md).
 
 ## Known limitations
 
-- No lane perception or autonomous controller yet. The car only drives from
-  manual commands.
-- The manual curve run is open-loop; it does not correct its own error.
+- No autonomous controller yet. The car still drives from manual commands.
+- Lane perception assumes a flat road and a fixed camera pitch.
+- Only continuous white markings are handled.
 - Docker renders with Mesa llvmpipe. Four cameras run at 6–10 Hz.
 - One lane, one car, no traffic or obstacles.
 

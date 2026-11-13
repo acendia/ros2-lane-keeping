@@ -8,6 +8,9 @@ bool valid
 # Detector confidence in [0.0, 1.0].
 float32 confidence
 
+# Empty when valid. Short reason when the estimate is rejected.
+string reason
+
 # Signed lateral offset of the lane center at the lookahead distance, in metres.
 float32 lateral_error
 
