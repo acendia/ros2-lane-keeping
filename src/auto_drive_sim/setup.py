@@ -21,6 +21,8 @@ setup(
          [path for path in glob('models/road/*') if os.path.isfile(path)]),
         (os.path.join('share', package_name, 'models', 'road', 'meshes'),
          glob('models/road/meshes/*')),
+        (os.path.join('share', package_name, 'models', 'car'),
+         [path for path in glob('models/car/*') if os.path.isfile(path)]),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
     ],
     install_requires=['setuptools'],
@@ -32,6 +34,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'teleop = auto_drive_sim.teleop:main',
         ],
     },
 )

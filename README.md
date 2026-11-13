@@ -4,12 +4,13 @@ A camera-based lane-following simulation for ROS 2 Jazzy and Gazebo Harmonic.
 
 ## Status
 
-Milestone 1 is complete in Docker. Gazebo loads an original 134.25 m oval with
-a 3.5 m lane, and four camera views show both continuous white boundaries on
-the straight and both curves. The planned Ubuntu 24.04 ARM64 VM has not been
-tested, and the car does not exist yet. See
-[`docs/environment.md`](docs/environment.md) and [`docs/track.md`](docs/track.md)
-for measured results and the documented Docker deviation.
+Milestone 2 is in progress in Docker. The car spawns at the track start, the
+Ackermann plugin receives `/car/cmd_vel`, and the camera and odometry topics
+carry data. Left/right steering, stopping, and the manual straight-and-curve
+drive are not verified yet, so the car is not ready for autonomous control.
+See [`docs/car.md`](docs/car.md), [`docs/track.md`](docs/track.md), and
+[`docs/environment.md`](docs/environment.md). The planned Ubuntu 24.04 ARM64
+VM remains untested.
 
 ## Repository layout
 
@@ -42,6 +43,22 @@ ros2 launch auto_drive_sim track_preview.launch.py gui:=false
 ```
 
 `gui:=true` starts the Gazebo client on a machine with a display.
+
+## Drive the car manually
+
+```bash
+ros2 launch auto_drive_sim manual_drive.launch.py gui:=false
+ros2 run auto_drive_sim teleop
+```
+
+The teleop node uses `w/a/s/d`, space to stop, and `q` to quit. A fixed command
+works without a keyboard:
+
+```bash
+ros2 run auto_drive_sim teleop --linear 0.5 --angular 0.0 --duration 2.0
+```
+
+The car model and topic contract are documented in [`docs/car.md`](docs/car.md).
 
 For the documented Docker development environment:
 
