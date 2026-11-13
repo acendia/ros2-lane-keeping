@@ -1,3 +1,5 @@
+"""Package installation for auto_drive_sim."""
+
 from glob import glob
 import os
 
@@ -15,7 +17,10 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'config'), glob('config/*')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*')),
-        (os.path.join('share', package_name, 'models'), glob('models/*')),
+        (os.path.join('share', package_name, 'models', 'road'),
+         [path for path in glob('models/road/*') if os.path.isfile(path)]),
+        (os.path.join('share', package_name, 'models', 'road', 'meshes'),
+         glob('models/road/meshes/*')),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
     ],
     install_requires=['setuptools'],
