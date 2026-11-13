@@ -10,17 +10,20 @@ geometry.
 
 ## Status
 
-Milestone 2 is in progress. The track, car, camera, odometry, and manual
-forward drive work in Docker on macOS arm64. Left/right steering, stopping, and
-the full straight + curve drive are not verified yet. Perception and control
-come next. The planned Ubuntu 24.04 ARM64 VM is still untested.
+Milestone 2 is complete in Docker. The car drives a straight and the east curve
+with manual commands. In the curve run it covered 39.65 m with a maximum
+centerline error of 0.188 m. Steering signs, stopping, camera, and odometry are
+checked. Perception and autonomous control come next. The planned Ubuntu
+24.04 ARM64 VM is still untested.
 
 What I have measured:
 
 - Camera: 640 × 360, 12.22 Hz wall clock, 14.84 Hz message timestamps.
 - Forward command: 0.5 m/s for 2 s moved the car 0.6355 m.
+- Manual straight + curve: 39.65 m, heading change −1.31 rad, max lane error
+  0.188 m.
 - Track: 134.25 m centerline, 3.5 m lane between the markings.
-- Tests: 11 passed.
+- Tests: 15 passed.
 
 ## Repository layout
 
@@ -68,6 +71,15 @@ ros2 run auto_drive_sim teleop --linear 0.5 --angular 0.0 --duration 2.0
 For keyboard control, run `ros2 run auto_drive_sim teleop` while the launch is
 running. Keys: `w/a/s/d`, space to stop, `q` to quit.
 
+A recorded straight-and-curve run uses the segment option:
+
+```bash
+ros2 run auto_drive_sim teleop \
+  --segments "1.5,0,14.9;1.5,-0.1,16.0" \
+  --tail 2.0 \
+  --record /tmp/drive.csv
+```
+
 On a native Ubuntu 24.04 machine with ROS 2 Jazzy and Gazebo Harmonic:
 
 ```bash
@@ -109,8 +121,9 @@ Details are in [`docs/car.md`](docs/car.md).
 
 ## Known limitations
 
-- No lane perception or controller yet.
-- Steering sign, stopping, and the manual curve drive are still unchecked.
+- No lane perception or autonomous controller yet. The car only drives from
+  manual commands.
+- The manual curve run is open-loop; it does not correct its own error.
 - Docker renders with Mesa llvmpipe. Four cameras run at 6–10 Hz.
 - One lane, one car, no traffic or obstacles.
 

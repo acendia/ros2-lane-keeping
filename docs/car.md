@@ -4,6 +4,9 @@ The first-release car is an original SDF model built from boxes and cylinders.
 It uses Gazebo Harmonic's Ackermann steering system. It is not a model copied
 from another project.
 
+Status: the car is manually drivable along a straight and the east curve.
+Perception and autonomous control are not implemented yet.
+
 ## Geometry and mass
 
 | Item | Value |
@@ -120,10 +123,28 @@ ros2 run auto_drive_sim teleop --linear 0.5 --angular 0.0 --duration 2.0
 `linear` is metres per second and `angular` is the commanded yaw rate in radians
 per second. The node sends a stop command before it exits.
 
-## Step 6 checks
+The teleop node can also run a continuous command sequence and record odometry:
 
-These checks verify the model, spawn, and topic plumbing. They do not yet claim
-the full manual-driving gate.
+```bash
+ros2 run auto_drive_sim teleop \
+  --segments "1.5,0,14.9;1.5,-0.1,16.0" \
+  --tail 2.0 \
+  --record /tmp/drive.csv
+```
+
+The record has `t_s, x_m, y_m, yaw_rad, vx_mps, wz_radps` from
+`/car/odometry`. To compare it with the track:
+
+```bash
+python3 tools/analyze_drive.py --drive /tmp/drive.csv --output /tmp/drive.png
+```
+
+The analysis transforms local odometry to the world frame and reports centerline
+error. It is a verification tool; the controller will not use the centerline.
+
+## Model and topic checks (Step 6)
+
+These checks verify the model, spawn, and topic plumbing.
 
 | Check | Result |
 |---|---|
@@ -140,13 +161,36 @@ the full manual-driving gate.
 | Ground-truth motion | x changed from −10.0 to −9.3645 at y = 15.0 |
 | Camera orientation | Start straight visible with both boundaries |
 
-## Pending driving verification
+## Manual driving checks (Step 7)
 
-Still to verify in the next step:
+I ran a short sign-and-stop sequence and a straight-plus-curve drive in the
+Docker environment.
 
-- left and right steering signs,
-- stopping after a command ends,
-- a manual pass along a straight and through a curve,
-- wheel rotation direction at the joint level.
+| Check | Result |
+|---|---|
+| Forward command | Odometry x increased; wheels rotate forward |
+| Positive angular command | Yaw increases (left turn) |
+| Negative angular command | Yaw rate becomes negative (right turn) |
+| Stop command | Final speed 0.0 m/s, pose stable |
+| Straight + east curve | 39.648 m in 27.65 s of simulated time |
+| Heading change through the curve | −1.310 rad |
+| Maximum absolute centerline error | 0.188 m |
+| 95th-percentile absolute error | 0.187 m |
+| Mean absolute error | 0.073 m |
+| Lane half-width | 1.75 m |
+| Curve camera | 74 frames in 6 s, 640 × 360, 12.95 Hz wall, 15.15 Hz timestamps |
 
-The car must not be used for autonomous control until those checks pass.
+The car stayed inside the lane through the curve. The path and camera frame
+below come from the same run.
+
+![Recorded drive against the centerline](images/manual_drive_path.png)
+
+![Camera during the east curve](images/manual_curve_camera.png)
+
+The first curve attempt used −0.2 rad/s and cut inside with a 1.5 m error. The
+track needs about −0.1 rad/s at 1.5 m/s. I also extended the straight segment
+from 13.8 s to 14.9 s so the turn starts at the curve rather than 1.2 m early.
+The final run is the one in the table.
+
+This is still a scripted manual command sequence, not lane keeping. Perception
+and control are the next milestone.
