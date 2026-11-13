@@ -4,11 +4,12 @@ A camera-based lane-following simulation for ROS 2 Jazzy and Gazebo Harmonic.
 
 ## Status
 
-The Milestone 0 camera gate passed in Docker: Gazebo Harmonic runs headlessly
-and publishes real 640 × 360 camera frames through ROS 2 at about 14 Hz. The
-planned Ubuntu 24.04 ARM64 VM has not been tested, and Milestone 1 has not
-started. See [`docs/environment.md`](docs/environment.md) for the measured
-result and the documented Docker deviation.
+Milestone 1 is complete in Docker. Gazebo loads an original 134.25 m oval with
+a 3.5 m lane, and four camera views show both continuous white boundaries on
+the straight and both curves. The planned Ubuntu 24.04 ARM64 VM has not been
+tested, and the car does not exist yet. See
+[`docs/environment.md`](docs/environment.md) and [`docs/track.md`](docs/track.md)
+for measured results and the documented Docker deviation.
 
 ## Repository layout
 
@@ -19,7 +20,7 @@ auto-drive-sim/
 │   └── auto_drive_sim_interfaces/      # LaneEstimate.msg
 ├── tools/                              # Track generator and scenario tools
 ├── tests/                              # Geometry, perception, control, integration tests
-└── docs/                               # Setup, architecture, experiments, results
+└── docs/                               # Setup, track, architecture, experiments, results
 ```
 
 ## Prerequisites
@@ -30,17 +31,17 @@ auto-drive-sim/
 - Gazebo Harmonic
 
 Installation and verification commands are recorded in
-[`docs/environment.md`](docs/environment.md) once they have been run.
+[`docs/environment.md`](docs/environment.md).
 
-## Build and launch
+## Build and preview the track
 
 ```bash
 colcon build --symlink-install
 source install/setup.bash
-ros2 launch auto_drive_sim demo.launch.py gui:=false
+ros2 launch auto_drive_sim track_preview.launch.py gui:=false
 ```
 
-The launch file does not exist yet; this is the intended interface.
+`gui:=true` starts the Gazebo client on a machine with a display.
 
 For the documented Docker development environment:
 
@@ -48,6 +49,26 @@ For the documented Docker development environment:
 ./docker/run.sh                                  # interactive shell
 ./docker/run.sh bash -lc 'colcon build --symlink-install'
 ```
+
+## Regenerate the track
+
+```bash
+python3 tools/generate_track.py
+python3 -m pytest -q tests/test_track_geometry.py
+```
+
+The generator and the committed assets are checked for byte-identical
+regeneration. See [`docs/track.md`](docs/track.md) for the dimensions,
+coordinate frame, and camera verification.
+
+## Test the track camera views
+
+```bash
+./docker/run.sh bash -lc 'tools/run_road_camera_check.sh'
+```
+
+This starts the headless world, bridges four cameras, and writes frames to
+`artifacts/road_check/`.
 
 ## License
 
