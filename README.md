@@ -1,40 +1,74 @@
-# auto-drive-sim
+# ros2-lane-keeping
 
-A camera-based lane-following simulation for ROS 2 Jazzy and Gazebo Harmonic.
+A camera-based lane keeping project for ROS 2 Jazzy and Gazebo Harmonic.
+
+I'm building a small car that follows a painted lane using only its forward
+camera. The simulator provides the world and the car. The camera gives the lane
+geometry.
+
+![Car camera at the start of the track](docs/images/car_start_camera.png)
 
 ## Status
 
-Milestone 2 is in progress in Docker. The car spawns at the track start, the
-Ackermann plugin receives `/car/cmd_vel`, and the camera and odometry topics
-carry data. Left/right steering, stopping, and the manual straight-and-curve
-drive are not verified yet, so the car is not ready for autonomous control.
-See [`docs/car.md`](docs/car.md), [`docs/track.md`](docs/track.md), and
-[`docs/environment.md`](docs/environment.md). The planned Ubuntu 24.04 ARM64
-VM remains untested.
+Milestone 2 is in progress. The track, car, camera, odometry, and manual
+forward drive work in Docker on macOS arm64. Left/right steering, stopping, and
+the full straight + curve drive are not verified yet. Perception and control
+come next. The planned Ubuntu 24.04 ARM64 VM is still untested.
+
+What I have measured:
+
+- Camera: 640 × 360, 12.22 Hz wall clock, 14.84 Hz message timestamps.
+- Forward command: 0.5 m/s for 2 s moved the car 0.6355 m.
+- Track: 134.25 m centerline, 3.5 m lane between the markings.
+- Tests: 11 passed.
 
 ## Repository layout
 
 ```text
-auto-drive-sim/
+ros2-lane-keeping/
 ├── src/
 │   ├── auto_drive_sim/                 # Python nodes, config, launch, models, worlds
 │   └── auto_drive_sim_interfaces/      # LaneEstimate.msg
-├── tools/                              # Track generator and scenario tools
-├── tests/                              # Geometry, perception, control, integration tests
-└── docs/                               # Setup, track, architecture, experiments, results
+├── tools/                              # Track generator and driving tools
+├── tests/                              # Geometry, car, and bridge tests
+├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
+└── docs/                               # Environment, track, and car notes
 ```
 
-## Prerequisites
+The ROS packages still use the `auto_drive_sim` name. I kept them to avoid a
+risky rename. The project name is ros2-lane-keeping.
 
-- Ubuntu 24.04 ARM64 (the plan's target) or the documented Docker development
-  environment described in `docs/environment.md`
-- ROS 2 Jazzy
-- Gazebo Harmonic
+## Run it
 
-Installation and verification commands are recorded in
-[`docs/environment.md`](docs/environment.md).
+Docker is the current development setup:
 
-## Build and preview the track
+```bash
+./docker/run.sh bash -lc 'colcon build --symlink-install'
+./docker/run.sh bash -lc 'tools/run_road_camera_check.sh'
+```
+
+The camera check starts Gazebo headlessly and writes four views to
+`artifacts/road_check/`.
+
+Manual drive:
+
+```bash
+./docker/run.sh
+```
+
+Inside the container:
+
+```bash
+source install/setup.bash
+ros2 launch auto_drive_sim manual_drive.launch.py gui:=false &
+sleep 18
+ros2 run auto_drive_sim teleop --linear 0.5 --angular 0.0 --duration 2.0
+```
+
+For keyboard control, run `ros2 run auto_drive_sim teleop` while the launch is
+running. Keys: `w/a/s/d`, space to stop, `q` to quit.
+
+On a native Ubuntu 24.04 machine with ROS 2 Jazzy and Gazebo Harmonic:
 
 ```bash
 colcon build --symlink-install
@@ -42,50 +76,43 @@ source install/setup.bash
 ros2 launch auto_drive_sim track_preview.launch.py gui:=false
 ```
 
-`gui:=true` starts the Gazebo client on a machine with a display.
+`gui:=true` needs a display. It is not tested in Docker.
 
-## Drive the car manually
+## Track
 
-```bash
-ros2 launch auto_drive_sim manual_drive.launch.py gui:=false
-ros2 run auto_drive_sim teleop
-```
+- Two 20 m straights and two 15 m radius ends.
+- 3.5 m lane between the inner edges of the white markings.
+- Start at `(-10, 15)`, heading east along the top straight.
 
-The teleop node uses `w/a/s/d`, space to stop, and `q` to quit. A fixed command
-works without a keyboard:
-
-```bash
-ros2 run auto_drive_sim teleop --linear 0.5 --angular 0.0 --duration 2.0
-```
-
-The car model and topic contract are documented in [`docs/car.md`](docs/car.md).
-
-For the documented Docker development environment:
-
-```bash
-./docker/run.sh                                  # interactive shell
-./docker/run.sh bash -lc 'colcon build --symlink-install'
-```
-
-## Regenerate the track
+The track is generated from one config file:
 
 ```bash
 python3 tools/generate_track.py
-python3 -m pytest -q tests/test_track_geometry.py
 ```
 
-The generator and the committed assets are checked for byte-identical
-regeneration. See [`docs/track.md`](docs/track.md) for the dimensions,
-coordinate frame, and camera verification.
+Details are in [`docs/track.md`](docs/track.md).
 
-## Test the track camera views
+## Car
+
+- 3.8 × 1.6 m body, 2.4 m wheelbase.
+- Rear-wheel drive with Ackermann steering.
+- 640 × 360 camera at 1.3 m height.
+- Topics: `/car/camera/image_raw`, `/car/odometry`, `/car/cmd_vel`.
+
+Details are in [`docs/car.md`](docs/car.md).
+
+## Tests
 
 ```bash
-./docker/run.sh bash -lc 'tools/run_road_camera_check.sh'
+./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-This starts the headless world, bridges four cameras, and writes frames to
-`artifacts/road_check/`.
+## Known limitations
+
+- No lane perception or controller yet.
+- Steering sign, stopping, and the manual curve drive are still unchecked.
+- Docker renders with Mesa llvmpipe. Four cameras run at 6–10 Hz.
+- One lane, one car, no traffic or obstacles.
 
 ## License
 
