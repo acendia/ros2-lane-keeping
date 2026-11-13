@@ -10,21 +10,22 @@ geometry.
 
 ## Status
 
-Milestone 3 is complete in Docker. The forward camera now produces a lane
-estimate on straights and both curve directions, and rejects blank or no-line
-frames. The next step is the pure-pursuit controller. The planned Ubuntu
-24.04 ARM64 VM is still untested.
+Milestone 4 is complete in Docker. The car drives itself around the straight
+and through both curve directions using camera perception and pure pursuit.
+It stops when perception is lost. The planned Ubuntu 24.04 ARM64 VM is still
+untested.
 
 What I have measured:
 
-- Camera: 640 × 360, 12.22 Hz wall clock, 14.84 Hz message timestamps.
-- Manual straight + curve: 39.65 m, heading change −1.31 rad, max lane error
-  0.188 m.
-- Perception: straight error 0.004 m, right curve +1.066 m, left curve
-  −1.061 m.
-- Live perception: confidence 0.873, error 0.0036 m at the start pose.
+- Camera: 640 × 360, 90° horizontal field of view.
+- Right-direction run: 71.03 m, full east curve, max centerline error 0.658 m.
+- Left-direction run: 71.50 m, full west curve, max centerline error 0.737 m.
+- Perception loss: speed 1.5 m/s → 0.0 m/s, controller state
+  `stale_lane_estimate`.
+- Perception: straight error 0.006 m, right curve +1.083 m, left curve
+  −1.071 m.
 - Track: 134.25 m centerline, 3.5 m lane between the markings.
-- Tests: 28 passed.
+- Tests: 42 passed.
 
 ## Repository layout
 
@@ -34,9 +35,9 @@ ros2-lane-keeping/
 │   ├── auto_drive_sim/                 # Python nodes, config, launch, models, worlds
 │   └── auto_drive_sim_interfaces/      # LaneEstimate.msg
 ├── tools/                              # Track generator and driving tools
-├── tests/                              # Geometry, car, and bridge tests
+├── tests/                              # Geometry, car, perception, and control tests
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
-└── docs/                               # Environment, track, and car notes
+└── docs/                               # Environment, track, car, perception, control
 ```
 
 The ROS packages still use the `auto_drive_sim` name. I kept them to avoid a
@@ -80,6 +81,16 @@ ros2 run auto_drive_sim teleop \
   --tail 2.0 \
   --record /tmp/drive.csv
 ```
+
+## Run autonomously
+
+```bash
+ros2 launch auto_drive_sim demo.launch.py gui:=false
+```
+
+This starts the world, bridge, perception node, and pure-pursuit controller.
+Use `controller:=false` to start only the world and perception. The controller
+and its measured runs are documented in [`docs/control.md`](docs/control.md).
 
 ## Run lane perception
 
@@ -132,7 +143,9 @@ Details are in [`docs/car.md`](docs/car.md).
 
 ## Known limitations
 
-- No autonomous controller yet. The car still drives from manual commands.
+- The controller uses a constant target speed and stops on any perception gap.
+- Centerline error is about 0.66–0.74 m in the two runs. The release target is
+  a 95th-percentile error below 0.35 m and belongs to Milestone 5.
 - Lane perception assumes a flat road and a fixed camera pitch.
 - Only continuous white markings are handled.
 - Docker renders with Mesa llvmpipe. Four cameras run at 6–10 Hz.

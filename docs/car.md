@@ -69,7 +69,7 @@ The forward RGB camera is mounted on a mast on the chassis.
 | Pitch | 0.05 rad down |
 | Resolution | 640 × 360 |
 | Rate | 15 Hz |
-| Horizontal field of view | 60° |
+| Horizontal field of view | 90° |
 | Gazebo topic | `/car/camera/image_raw` |
 | ROS topic | `/car/camera/image_raw` |
 

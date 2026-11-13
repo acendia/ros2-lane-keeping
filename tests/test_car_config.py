@@ -37,6 +37,7 @@ def test_camera_sensor():
     assert sensor is not None
     assert sensor.findtext('topic') == '/car/camera/image_raw'
     assert sensor.findtext('update_rate') == '15'
+    assert sensor.findtext('camera/horizontal_fov') == '1.5708'
     assert sensor.findtext('camera/image/width') == '640'
     assert sensor.findtext('camera/image/height') == '360'
 

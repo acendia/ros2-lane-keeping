@@ -34,6 +34,7 @@ setup(
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
+            'lane_controller = auto_drive_sim.lane_controller:main',
             'lane_perception = auto_drive_sim.lane_perception:main',
             'teleop = auto_drive_sim.teleop:main',
         ],

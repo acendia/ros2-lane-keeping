@@ -10,13 +10,13 @@ publishes an overlay on `/car/debug_image`.
 ## Camera and ground plane
 
 The camera is fixed at 1.3 m above the road, pitched 0.05 rad down, 1.4 m
-ahead of the model origin. It produces 640 × 360 images with a 60° horizontal
+ahead of the model origin. It produces 640 × 360 images with a 90° horizontal
 field of view.
 
 | Intrinsic | Value |
 |---|---|
-| `fx` | 554.25 px |
-| `fy` | 554.25 px |
+| `fx` | 320.00 px |
+| `fy` | 320.00 px |
 | `cx` | 320 px |
 | `cy` | 180 px |
 
@@ -54,18 +54,17 @@ the model origin. The published target uses vehicle coordinates, so
    pixel into a ground point. The sky produces no ground points, so it is
    ignored naturally.
 3. **Cut the road ROI.** Keep points from 3.5 to 12 m forward and within ±5 m
-   lateral. Bin the points every 0.5 m along the road.
-4. **Split left and right.** In each bin, cluster the lateral values with a
-   0.25 m gap. Choose the pair whose separation is closest to 3.62 m
-   (3.5 m lane plus 0.12 m marking width), and assign the higher-lateral
-   cluster to the left boundary.
+   lateral.
+4. **Find the two markings.** Take connected white components with enough
+   pixels and ground points. Keep the two largest components. Assign the
+   higher-lateral component to the left boundary and the other to the right.
 5. **Fit each boundary.** Fit a quadratic `y(x)` with three residual-rejection
    passes. Require at least 50 inliers, a 3 m forward span, and RMS error below
    0.15 m.
-6. **Validate and estimate.** Compute the lane width at 4, 6, and 8 m. Reject
-   a pair that is swapped, narrower than 2.8 m, wider than 4.5 m, or has a
-   center more than 2.5 m from the camera axis. The lateral error is the lane
-   center at the 4 m camera lookahead.
+6. **Validate and estimate.** Compute the lane width at the 4 m lookahead.
+   Reject a pair that is swapped, narrower than 2.8 m, wider than 4.5 m, or
+   has a center more than 2.5 m from the camera axis. The lateral error is the
+   lane center at the 4 m camera lookahead.
 
 The confidence combines boundary point count, fit RMS, and width error. It is
 a relative quality score, not a probability.
@@ -91,9 +90,9 @@ from four static cameras using the same camera model as the car.
 
 | Frame | Valid | Confidence | Lateral error | Line-center width |
 |---|---:|---:|---:|---:|
-| Straight | yes | 0.899 | 0.004 m | 3.664 m |
-| Right curve | yes | 0.892 | +1.066 m | 3.687 m |
-| Left curve | yes | 0.889 | −1.061 m | 3.691 m |
+| Straight | yes | 0.895 | 0.006 m | 3.672 m |
+| Right curve | yes | 0.881 | +1.083 m | 3.702 m |
+| Left curve | yes | 0.880 | −1.071 m | 3.701 m |
 | No line | no | 0.000 | — | — |
 
 The right-curve error is positive because the lane is to the left of the
@@ -102,7 +101,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The test suite has 28 tests.
+stale timestamps. The test suite has 42 tests.
 
 Run the perception tests:
 
@@ -129,21 +128,29 @@ At the start pose the live estimate was:
 
 ```text
 valid: true
-confidence: 0.873
+confidence: 0.868
 reason: ""
-lateral_error: 0.0036
+lateral_error: 0.0062
 lookahead_target:
   x: 5.4
-  y: 0.0036
+  y: 0.0062
 ```
 
-The debug image carried 50 frames in 4 s at 640 × 360, 12.81 Hz wall clock,
-and 14.85 Hz message timestamps.
+The debug image carried 38 frames in 4 s at 640 × 360, 12.17 Hz wall clock,
+and 14.75 Hz message timestamps.
 
 ![Live debug overlay](images/perception_live_debug.png)
 
 The green line is the fitted left boundary, the red line is the fitted right
 boundary, and the yellow dot is the lookahead target.
+
+## Revisions
+
+The first live autonomy run stopped at the east curve because the 60° camera
+saw only one boundary. I widened the camera to 90° and changed the boundary
+extraction from per-distance pairing to two connected marking components. The
+same run also showed that width measured at 4, 6, and 8 m grows on a curve, so
+the width check now uses only the 4 m target.
 
 ## Limitations
 

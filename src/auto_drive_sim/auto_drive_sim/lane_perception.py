@@ -20,7 +20,7 @@ class CameraModel:
 
     width: int = 640
     height: int = 360
-    horizontal_fov_rad: float = 1.0472
+    horizontal_fov_rad: float = 1.5708
     height_m: float = 1.3
     pitch_rad: float = 0.05
     x_offset_m: float = 1.4
@@ -54,11 +54,9 @@ class PerceptionConfig:
     roi_min_forward_m: float = 3.5
     roi_max_forward_m: float = 12.0
     roi_half_width_m: float = 5.0
-    bin_width_m: float = 0.5
-    cluster_gap_m: float = 0.25
-    min_cluster_points: int = 3
+    min_component_area_px: int = 100
     min_boundary_points: int = 50
-    min_boundary_span_m: float = 3.0
+    min_boundary_span_m: float = 2.5
     min_separation_m: float = 2.8
     max_separation_m: float = 4.5
     max_fit_residual_m: float = 0.25
@@ -165,78 +163,35 @@ def threshold_markings(image: np.ndarray,
         (180, config.white_saturation_max, 255))
 
 
-def _cluster_points(x_values: np.ndarray, y_values: np.ndarray,
-                    gap_m: float, min_points: int) -> list:
-    order = np.argsort(y_values)
-    sorted_y = y_values[order]
-    if sorted_y.size == 0:
-        return []
-    splits = np.where(np.diff(sorted_y) > gap_m)[0] + 1
-    groups = np.split(order, splits)
-    return [group for group in groups if group.size >= min_points]
-
-
 def extract_boundary_points(mask: np.ndarray, ground: GroundPlane,
                             config: PerceptionConfig) -> tuple:
-    """Split ground-projected marking pixels into left and right boundaries."""
-    x_values, y_values = ground.points_for_mask(mask)
-    keep = (
-        (x_values >= config.roi_min_forward_m) &
-        (x_values <= config.roi_max_forward_m) &
-        (np.abs(y_values) <= config.roi_half_width_m))
-    x_values = x_values[keep]
-    y_values = y_values[keep]
-
-    left_points = []
-    right_points = []
-    for start in np.arange(
-            config.roi_min_forward_m,
-            config.roi_max_forward_m,
-            config.bin_width_m):
-        selected = (
-            (x_values >= start) &
-            (x_values < start + config.bin_width_m))
-        if selected.sum() < config.min_cluster_points:
+    """Find the two largest marking components and split them by side."""
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
+    components = []
+    for label in range(1, count):
+        if stats[label, cv2.CC_STAT_AREA] < config.min_component_area_px:
             continue
-        clusters = _cluster_points(
-            x_values[selected], y_values[selected],
-            config.cluster_gap_m, config.min_cluster_points)
-        best = None
-        for first in range(len(clusters)):
-            for second in range(first + 1, len(clusters)):
-                first_y = y_values[selected][clusters[first]].mean()
-                second_y = y_values[selected][clusters[second]].mean()
-                width = abs(first_y - second_y)
-                if not config.min_separation_m <= width <= config.max_separation_m:
-                    continue
-                score = (clusters[first].size + clusters[second].size -
-                         10.0 * abs(width - 3.62))
-                if best is None or score > best[0]:
-                    best = (score, clusters[first], clusters[second],
-                            first_y, second_y)
-        if best is None:
-            continue
-        _, first, second, first_y, second_y = best
-        first_x = x_values[selected][first]
-        first_y_values = y_values[selected][first]
-        second_x = x_values[selected][second]
-        second_y_values = y_values[selected][second]
-        if first_y > second_y:
-            left_points.append((first_x, first_y_values))
-            right_points.append((second_x, second_y_values))
-        else:
-            left_points.append((second_x, second_y_values))
-            right_points.append((first_x, first_y_values))
+        component_mask = (labels == label).astype(np.uint8)
+        x_values, y_values = ground.points_for_mask(component_mask)
+        keep = (
+            (x_values >= config.roi_min_forward_m) &
+            (x_values <= config.roi_max_forward_m) &
+            (np.abs(y_values) <= config.roi_half_width_m))
+        x_values = x_values[keep]
+        y_values = y_values[keep]
+        if x_values.size >= config.min_boundary_points:
+            components.append((x_values, y_values))
 
-    def combine(points: list) -> tuple:
-        if not points:
-            return np.array([]), np.array([])
-        return (
-            np.concatenate([point[0] for point in points]),
-            np.concatenate([point[1] for point in points]),
-        )
+    components.sort(key=lambda component: component[0].size, reverse=True)
+    if len(components) < 2:
+        empty = (np.array([]), np.array([]))
+        return empty, empty
 
-    return combine(left_points), combine(right_points)
+    first = components[0]
+    second = components[1]
+    if first[1].mean() > second[1].mean():
+        return (first[0], first[1]), (second[0], second[1])
+    return (second[0], second[1]), (first[0], first[1])
 
 
 def fit_boundary(x_values: np.ndarray, y_values: np.ndarray,
@@ -271,14 +226,14 @@ def fit_boundary(x_values: np.ndarray, y_values: np.ndarray,
 def validate_boundaries(left: BoundaryFit, right: BoundaryFit,
                         config: PerceptionConfig) -> str:
     """Return an empty string or the reason the pair is implausible."""
-    for x_m in (config.target_distance_m, 6.0, 8.0):
-        width = left.evaluate(x_m) - right.evaluate(x_m)
-        if width <= 0.0:
-            return 'swapped_boundaries'
-        if width < config.min_separation_m:
-            return 'lane_too_narrow'
-        if width > config.max_separation_m:
-            return 'lane_too_wide'
+    width = left.evaluate(config.target_distance_m) - \
+        right.evaluate(config.target_distance_m)
+    if width <= 0.0:
+        return 'swapped_boundaries'
+    if width < config.min_separation_m:
+        return 'lane_too_narrow'
+    if width > config.max_separation_m:
+        return 'lane_too_wide'
     center = 0.5 * (
         left.evaluate(config.target_distance_m) +
         right.evaluate(config.target_distance_m))

@@ -147,6 +147,9 @@ def main() -> int:
                         default=DEFAULT_CENTERLINE)
     parser.add_argument('--track', type=Path, default=DEFAULT_TRACK)
     parser.add_argument('--track-meta', type=Path, default=DEFAULT_TRACK_META)
+    parser.add_argument('--start-x', type=float)
+    parser.add_argument('--start-y', type=float)
+    parser.add_argument('--start-yaw', type=float)
     parser.add_argument('--output', type=Path,
                         default=REPO_ROOT / 'artifacts/drive_analysis.png')
     args = parser.parse_args()
@@ -162,7 +165,13 @@ def main() -> int:
         track = yaml.safe_load(stream)
     lane_width = float(track['track']['lane_width_m'])
     with args.track_meta.open('r', encoding='utf-8') as stream:
-        start_pose = json.load(stream)['start_pose']
+        start_pose = dict(json.load(stream)['start_pose'])
+    if args.start_x is not None:
+        start_pose['x_m'] = args.start_x
+    if args.start_y is not None:
+        start_pose['y_m'] = args.start_y
+    if args.start_yaw is not None:
+        start_pose['yaw_rad'] = args.start_yaw
 
     drive = _to_world(drive, start_pose)
     summary = _analyze(drive, centerline)
