@@ -23,6 +23,3 @@ __pycache__/
 
 # Local test artifacts
 artifacts/
-
-# Working plan, not part of the public repo
-PLAN.md
