@@ -10,22 +10,22 @@ geometry.
 
 ## Status
 
-Milestone 4 is complete in Docker. The car drives itself around the straight
-and through both curve directions using camera perception and pure pursuit.
-It stops when perception is lost. The planned Ubuntu 24.04 ARM64 VM is still
-untested.
+Milestone 5 is complete in Docker. All three release scenarios finish a lap,
+stay inside the lane boundaries, and meet the 0.35 m p95 lateral-error target.
+The planned Ubuntu 24.04 ARM64 VM is still untested.
 
-What I have measured:
+| Scenario | Lap | p95 error | Max error | Crossing | Valid | Stops |
+|---|---:|---:|---:|---:|---:|---:|
+| center | yes | 0.231 m | 0.232 m | no | 100% | 0 |
+| left +0.3 m | yes | 0.268 m | 0.300 m | no | 100% | 0 |
+| right −0.3 m | yes | 0.252 m | 0.300 m | no | 100% | 0 |
 
 - Camera: 640 × 360, 90° horizontal field of view.
-- Right-direction run: 71.03 m, full east curve, max centerline error 0.658 m.
-- Left-direction run: 71.50 m, full west curve, max centerline error 0.737 m.
+- Lap time: about 87.9 simulated seconds in all three runs.
 - Perception loss: speed 1.5 m/s → 0.0 m/s, controller state
   `stale_lane_estimate`.
-- Perception: straight error 0.006 m, right curve +1.083 m, left curve
-  −1.071 m.
 - Track: 134.25 m centerline, 3.5 m lane between the markings.
-- Tests: 42 passed.
+- Tests: 50 passed.
 
 ## Repository layout
 
@@ -37,7 +37,8 @@ ros2-lane-keeping/
 ├── tools/                              # Track generator and driving tools
 ├── tests/                              # Geometry, car, perception, and control tests
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
-└── docs/                               # Environment, track, car, perception, control
+├── results/                            # Scenario JSON, CSV, and summary
+└── docs/                               # Environment, track, car, perception, control, evaluation
 ```
 
 The ROS packages still use the `auto_drive_sim` name. I kept them to avoid a
@@ -135,6 +136,18 @@ Details are in [`docs/track.md`](docs/track.md).
 
 Details are in [`docs/car.md`](docs/car.md).
 
+## Run the release scenarios
+
+```bash
+./docker/run.sh bash -lc 'colcon build --symlink-install'
+./docker/run.sh bash -lc 'tools/run_scenarios.sh'
+cat results/summary.md
+```
+
+The evaluator uses Gazebo model pose and the track centerline only in the
+evaluation process. Details and tuning history are in
+[`docs/evaluation.md`](docs/evaluation.md).
+
 ## Tests
 
 ```bash
@@ -143,13 +156,12 @@ Details are in [`docs/car.md`](docs/car.md).
 
 ## Known limitations
 
+- Results are from Docker on macOS, not the planned Ubuntu VM.
+- The track is a clean, flat, one-lane oval with continuous white markings.
 - The controller uses a constant target speed and stops on any perception gap.
-- Centerline error is about 0.66–0.74 m in the two runs. The release target is
-  a 95th-percentile error below 0.35 m and belongs to Milestone 5.
-- Lane perception assumes a flat road and a fixed camera pitch.
-- Only continuous white markings are handled.
-- Docker renders with Mesa llvmpipe. Four cameras run at 6–10 Hz.
-- One lane, one car, no traffic or obstacles.
+- There is no traffic, weather, occlusion, or dashed marking.
+- One lane, one car, no obstacles.
+- Meeting the target on this track is not a claim of road-ready autonomy.
 
 ## License
 

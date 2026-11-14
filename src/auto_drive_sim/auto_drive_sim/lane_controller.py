@@ -19,7 +19,7 @@ class ControllerConfig:
     max_acceleration_mps2: float = 0.6
     max_curvature_1pm: float = 0.15
     max_yaw_rate_radps: float = 0.6
-    lookahead_gain: float = 1.0
+    lookahead_gain: float = 1.2
     yaw_smoothing_alpha: float = 0.35
     max_lane_age_s: float = 0.3
     max_odom_age_s: float = 0.3
@@ -140,7 +140,7 @@ class LaneController(Node):
         self.declare_parameter('max_acceleration_mps2', 0.6)
         self.declare_parameter('max_curvature_1pm', 0.15)
         self.declare_parameter('max_yaw_rate_radps', 0.6)
-        self.declare_parameter('lookahead_gain', 1.0)
+        self.declare_parameter('lookahead_gain', 1.2)
         self.declare_parameter('yaw_smoothing_alpha', 0.35)
         self.declare_parameter('max_lane_age_s', 0.3)
         self.declare_parameter('max_odom_age_s', 0.3)

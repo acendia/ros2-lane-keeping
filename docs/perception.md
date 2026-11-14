@@ -101,7 +101,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The test suite has 42 tests.
+stale timestamps. The full test suite has 50 tests.
 
 Run the perception tests:
 

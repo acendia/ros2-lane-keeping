@@ -112,6 +112,7 @@ def test_yaw_rate_limit():
         max_acceleration_mps2=1.0,
         max_curvature_1pm=0.2,
         max_yaw_rate_radps=0.1,
+        lookahead_gain=1.0,
         yaw_smoothing_alpha=1.0,
     )
     follower = lane_controller.LaneFollower(config)
@@ -167,6 +168,7 @@ def test_yaw_smoothing():
         max_acceleration_mps2=100.0,
         max_curvature_1pm=0.2,
         max_yaw_rate_radps=0.6,
+        lookahead_gain=1.0,
         yaw_smoothing_alpha=0.3,
     )
     follower = lane_controller.LaneFollower(config)

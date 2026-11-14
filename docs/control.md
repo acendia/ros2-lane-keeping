@@ -66,7 +66,7 @@ speed went from 1.5 m/s to 0.0 m/s.
 | `max_acceleration_mps2` | 0.6 |
 | `max_curvature_1pm` | 0.15 |
 | `max_yaw_rate_radps` | 0.6 |
-| `lookahead_gain` | 1.0 |
+| `lookahead_gain` | 1.2 |
 | `yaw_smoothing_alpha` | 0.35 |
 | `max_lane_age_s` | 0.3 |
 | `max_odom_age_s` | 0.3 |
@@ -110,7 +110,7 @@ The controller tests cover:
 - recovery ramp,
 - yaw smoothing.
 
-The repository suite has 42 tests:
+The repository suite has 50 tests:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
@@ -118,7 +118,10 @@ The repository suite has 42 tests:
 
 ## Live results
 
-Both runs lasted 50 simulated seconds and used the default 1.5 m/s target.
+The final full-lap release scenarios are in
+[`docs/evaluation.md`](evaluation.md). The two runs below are shorter
+controller checks from the previous milestone; both lasted 50 simulated
+seconds and used the 1.5 m/s target.
 
 | Run | Distance | Heading change | Max centerline error | p95 | Mean |
 |---|---:|---:|---:|---:|---:|
