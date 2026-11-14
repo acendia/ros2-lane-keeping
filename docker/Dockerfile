@@ -55,6 +55,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       python3-colcon-common-extensions \
     && rm -rf /var/lib/apt/lists/*
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      ros-jazzy-foxglove-bridge \
+    && rm -rf /var/lib/apt/lists/*
+
 RUN printf '%s\n' \
       '#!/bin/bash' \
       'set -e' \

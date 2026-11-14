@@ -55,6 +55,11 @@ def generate_launch_description():
             description='Start the lane controller.',
         ),
         DeclareLaunchArgument(
+            'foxglove',
+            default_value='false',
+            description='Start the Foxglove bridge on port 8765.',
+        ),
+        DeclareLaunchArgument(
             'world',
             default_value='car_world.sdf',
             description='World file name or absolute path.',
@@ -74,6 +79,17 @@ def generate_launch_description():
             executable='lane_perception',
             output='screen',
             parameters=[{'use_sim_time': True}],
+        ),
+        Node(
+            package='foxglove_bridge',
+            executable='foxglove_bridge',
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('foxglove')),
+            parameters=[{
+                'port': 8765,
+                'address': '0.0.0.0',
+                'use_sim_time': True,
+            }],
         ),
         Node(
             package='auto_drive_sim',

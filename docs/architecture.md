@@ -12,9 +12,12 @@
 | Lane controller | `LaneEstimate`, odometry | `/car/cmd_vel` |
 | Evaluation bridge | Gazebo `pose/info` | `/evaluation/model_poses` |
 | Evaluator | Model pose, centerline, `LaneEstimate` | JSON, CSV, summary table |
+| Foxglove bridge (optional) | ROS topics | `ws://localhost:8765` |
 
 The launch file `demo.launch.py` starts the world, main bridge, perception,
 and controller. The evaluator and its bridge run only in the scenario runner.
+The Foxglove bridge is an optional read-only visualization path; perception and
+control do not use it. See [`interface.md`](interface.md).
 
 ## Ground-truth isolation
 

@@ -51,6 +51,7 @@ sudo apt install -y \
   ros-jazzy-cv-bridge \
   ros-jazzy-image-transport \
   ros-jazzy-image-view \
+  ros-jazzy-foxglove-bridge \
   python3-colcon-common-extensions
 ```
 
@@ -76,6 +77,9 @@ source install/setup.bash
 The road meshes, car model, and world are committed. Nothing is downloaded from
 Gazebo Fuel. `PLAN.md` and `PROGRESS.md` are local working files and are not
 part of the public repository.
+
+`ros-jazzy-foxglove-bridge` is the optional live interface. The Docker runner
+publishes port 8765 for it.
 
 ## Run
 

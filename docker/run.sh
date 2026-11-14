@@ -16,7 +16,8 @@ if [ "$#" -eq 0 ]; then
   set -- bash
 fi
 
-docker_args=(--rm --shm-size=1g -v "$repo_dir:/workspace" -w /workspace)
+docker_args=(--rm --shm-size=1g -p "${FOXGLOVE_PORT:-8765}:8765" \
+  -v "$repo_dir:/workspace" -w /workspace)
 if [ -t 0 ] && [ -t 1 ]; then
   docker_args+=(-it)
 fi

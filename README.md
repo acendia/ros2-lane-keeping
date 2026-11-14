@@ -96,6 +96,18 @@ ros2 launch auto_drive_sim demo.launch.py gui:=false
 The car starts driving by itself. `Ctrl-C` stops it. `gui:=true` needs a
 display and is not tested in Docker.
 
+Live Foxglove view:
+
+```bash
+./docker/run.sh bash -lc \
+  'source install/setup.bash && ros2 launch auto_drive_sim demo.launch.py gui:=false foxglove:=true'
+```
+
+Open Foxglove.app, connect to `ws://localhost:8765`, and add image panels for
+`/car/camera/image_raw` and `/car/debug_image`. Add plots for
+`/car/lane_estimate` and `/car/cmd_vel`. The full panel guide is in
+[`docs/interface.md`](docs/interface.md).
+
 Run only perception:
 
 ```bash
