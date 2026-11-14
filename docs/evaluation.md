@@ -4,7 +4,10 @@ The release scenarios use Gazebo model pose and the generated centerline only
 inside the evaluator. The perception and controller nodes never subscribe to
 either.
 
-The raw results are in [`results/`](../results/). The runner writes one JSON
+The raw results are in [`results/`](../results/). These results and the
+demo images were captured from commit `89de4eb` with a 1.5 m/s target and
+lookahead gain 1.2. The documentation commit that follows does not change
+runtime code. The runner writes one JSON
 result and one lateral-error CSV per scenario, plus
 [`results/summary.md`](../results/summary.md).
 

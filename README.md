@@ -1,62 +1,70 @@
 # ros2-lane-keeping
 
-A camera-based lane keeping project for ROS 2 Jazzy and Gazebo Harmonic.
+A ROS 2 Jazzy and Gazebo Harmonic project where a small car follows a painted
+lane using only its forward camera.
 
-I'm building a small car that follows a painted lane using only its forward
-camera. The simulator provides the world and the car. The camera gives the lane
-geometry.
+![Demo sequence: camera, lane estimate, curve, lap error](docs/images/demo_sequence.png)
 
-![Car camera at the start of the track](docs/images/car_start_camera.png)
+## Results
 
-## Status
+Release target: all three starting positions complete a lap, no part of the
+car footprint crosses a lane boundary, and the 95th-percentile absolute lateral
+error stays below 0.35 m.
 
-Milestone 5 is complete in Docker. All three release scenarios finish a lap,
-stay inside the lane boundaries, and meet the 0.35 m p95 lateral-error target.
-The planned Ubuntu 24.04 ARM64 VM is still untested.
+| Scenario | Lap | Lap time | p95 error | Max error | Crossing | Valid | Stops |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| center | yes | 87.87 s | 0.231 m | 0.232 m | no | 100% | 0 |
+| left +0.3 m | yes | 87.88 s | 0.268 m | 0.300 m | no | 100% | 0 |
+| right −0.3 m | yes | 87.87 s | 0.252 m | 0.300 m | no | 100% | 0 |
 
-| Scenario | Lap | p95 error | Max error | Crossing | Valid | Stops |
-|---|---:|---:|---:|---:|---:|---:|
-| center | yes | 0.231 m | 0.232 m | no | 100% | 0 |
-| left +0.3 m | yes | 0.268 m | 0.300 m | no | 100% | 0 |
-| right −0.3 m | yes | 0.252 m | 0.300 m | no | 100% | 0 |
+The target passes in this environment.
 
-- Camera: 640 × 360, 90° horizontal field of view.
-- Lap time: about 87.9 simulated seconds in all three runs.
-- Perception loss: speed 1.5 m/s → 0.0 m/s, controller state
-  `stale_lane_estimate`.
-- Track: 134.25 m centerline, 3.5 m lane between the markings.
-- Tests: 50 passed.
+- Tested in Docker on macOS arm64.
+- Ubuntu 24.04.5 arm64.
+- ROS 2 Jazzy.
+- Gazebo Sim 8.15.0.
+- Track version 1, 134.248 m centerline, 3.5 m lane.
+- Demo and evaluation run: commit `89de4eb`, 1.5 m/s, lookahead gain 1.2, 90°
+  camera.
 
-## Repository layout
+The planned Ubuntu VM is not tested. Do not read the Docker numbers as VM
+numbers.
 
-```text
-ros2-lane-keeping/
-├── src/
-│   ├── auto_drive_sim/                 # Python nodes, config, launch, models, worlds
-│   └── auto_drive_sim_interfaces/      # LaneEstimate.msg
-├── tools/                              # Track generator and driving tools
-├── tests/                              # Geometry, car, perception, and control tests
-├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
-├── results/                            # Scenario JSON, CSV, and summary
-└── docs/                               # Environment, track, car, perception, control, evaluation
-```
+Raw results are in [`results/`](results/). The method and tuning record are in
+[`docs/evaluation.md`](docs/evaluation.md).
 
-The ROS packages still use the `auto_drive_sim` name. I kept them to avoid a
-risky rename. The project name is ros2-lane-keeping.
+## How it works
 
-## Run it
+![Data flow](docs/images/architecture.png)
 
-Docker is the current development setup:
+- **Perception** uses only `/car/camera/image_raw`. It projects bright marking
+  pixels onto the ground plane, fits the two white boundaries, and publishes a
+  lane center and a 4 m camera lookahead target.
+- **Controller** uses only `LaneEstimate` and odometry. It applies pure pursuit,
+  a speed ramp, curvature and yaw limits, and a yaw smoother. It stops on an
+  invalid, missing, or stale estimate.
+- **Evaluator** is a separate process. It reads Gazebo model pose and the
+  generated centerline for scoring. Neither perception nor control can see
+  those inputs.
 
-```bash
-./docker/run.sh bash -lc 'colcon build --symlink-install'
-./docker/run.sh bash -lc 'tools/run_road_camera_check.sh'
-```
+The data flow, ground-truth isolation, and equations are in
+[`docs/architecture.md`](docs/architecture.md). Perception stages are in
+[`docs/perception.md`](docs/perception.md). Control parameters are in
+[`docs/control.md`](docs/control.md).
 
-The camera check starts Gazebo headlessly and writes four views to
-`artifacts/road_check/`.
+## Prerequisites
 
-Manual drive:
+- Ubuntu 24.04 ARM64, or Docker on Apple Silicon
+- ROS 2 Jazzy
+- Gazebo Harmonic through `ros-jazzy-ros-gz` vendor packages
+- Python 3.12, OpenCV, NumPy, PyYAML
+
+The road, car, and world assets are committed. The project does not download
+Gazebo Fuel models.
+
+## Setup
+
+Docker is the tested path:
 
 ```bash
 ./docker/run.sh
@@ -65,103 +73,93 @@ Manual drive:
 Inside the container:
 
 ```bash
+colcon build --symlink-install
 source install/setup.bash
-ros2 launch auto_drive_sim manual_drive.launch.py gui:=false &
-sleep 18
-ros2 run auto_drive_sim teleop --linear 0.5 --angular 0.0 --duration 2.0
+python3 -m pytest -q tests
 ```
 
-For keyboard control, run `ros2 run auto_drive_sim teleop` while the launch is
-running. Keys: `w/a/s/d`, space to stop, `q` to quit.
+For a native Ubuntu 24.04 ARM64 install, including the exact ROS and Gazebo
+packages, see [`docs/setup.md`](docs/setup.md).
 
-A recorded straight-and-curve run uses the segment option:
+## Run
 
-```bash
-ros2 run auto_drive_sim teleop \
-  --segments "1.5,0,14.9;1.5,-0.1,16.0" \
-  --tail 2.0 \
-  --record /tmp/drive.csv
-```
-
-## Run autonomously
+Headless demo:
 
 ```bash
 ros2 launch auto_drive_sim demo.launch.py gui:=false
 ```
 
-This starts the world, bridge, perception node, and pure-pursuit controller.
-Use `controller:=false` to start only the world and perception. The controller
-and its measured runs are documented in [`docs/control.md`](docs/control.md).
+The car starts driving by itself. `Ctrl-C` stops it. `gui:=true` needs a
+display and is not tested in Docker.
 
-## Run lane perception
+Run only perception:
 
 ```bash
 ros2 launch auto_drive_sim perception.launch.py gui:=false
 ros2 topic echo /car/lane_estimate
 ```
 
-The debug overlay is on `/car/debug_image`. Saved test frames and the full
-pipeline are documented in [`docs/perception.md`](docs/perception.md).
-
-On a native Ubuntu 24.04 machine with ROS 2 Jazzy and Gazebo Harmonic:
+Manual drive:
 
 ```bash
-colcon build --symlink-install
-source install/setup.bash
-ros2 launch auto_drive_sim track_preview.launch.py gui:=false
+ros2 launch auto_drive_sim manual_drive.launch.py gui:=false
+ros2 run auto_drive_sim teleop
 ```
 
-`gui:=true` needs a display. It is not tested in Docker.
+## Tests and evaluation
 
-## Track
-
-- Two 20 m straights and two 15 m radius ends.
-- 3.5 m lane between the inner edges of the white markings.
-- Start at `(-10, 15)`, heading east along the top straight.
-
-The track is generated from one config file:
-
-```bash
-python3 tools/generate_track.py
-```
-
-Details are in [`docs/track.md`](docs/track.md).
-
-## Car
-
-- 3.8 × 1.6 m body, 2.4 m wheelbase.
-- Rear-wheel drive with Ackermann steering.
-- 640 × 360 camera at 1.3 m height.
-- Topics: `/car/camera/image_raw`, `/car/odometry`, `/car/cmd_vel`.
-
-Details are in [`docs/car.md`](docs/car.md).
-
-## Run the release scenarios
-
-```bash
-./docker/run.sh bash -lc 'colcon build --symlink-install'
-./docker/run.sh bash -lc 'tools/run_scenarios.sh'
-cat results/summary.md
-```
-
-The evaluator uses Gazebo model pose and the track centerline only in the
-evaluation process. Details and tuning history are in
-[`docs/evaluation.md`](docs/evaluation.md).
-
-## Tests
+Fast tests:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
+The suite has 50 tests: track geometry, car and bridge limits, perception
+frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
+
+Run the three release scenarios:
+
+```bash
+./docker/run.sh bash -lc 'tools/run_scenarios.sh'
+cat results/summary.md
+```
+
+Each scenario takes a few minutes because it runs one simulated lap.
+
+## Repository layout
+
+```text
+ros2-lane-keeping/
+├── src/
+│   ├── auto_drive_sim/                 # nodes, config, launch, models, worlds
+│   └── auto_drive_sim_interfaces/      # LaneEstimate.msg
+├── tools/                              # track, capture, drive, evaluation tools
+├── tests/                              # unit tests and saved camera frames
+├── results/                            # scenario JSON, CSV, Markdown summary
+├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
+└── docs/                               # setup, architecture, track, car,
+                                        # perception, control, evaluation
+```
+
+The ROS package names still use `auto_drive_sim`. I kept them to avoid a risky
+rename. The project name is ros2-lane-keeping.
+
 ## Known limitations
 
 - Results are from Docker on macOS, not the planned Ubuntu VM.
 - The track is a clean, flat, one-lane oval with continuous white markings.
-- The controller uses a constant target speed and stops on any perception gap.
-- There is no traffic, weather, occlusion, or dashed marking.
-- One lane, one car, no obstacles.
+  Dashed, worn, shadowed, or wet markings are not handled.
+- Speed is constant at 1.5 m/s. There is no curve speed planning.
+- The controller stops on any perception gap instead of coasting through it.
+- There is no traffic, weather, occlusion, or obstacle handling.
 - Meeting the target on this track is not a claim of road-ready autonomy.
+
+## Next
+
+Add dashed and worn markings, shadows, and lighting changes, with a labeled
+frame set to measure detection quality. Then add curve speed planning and
+smoother steering, followed by multiple lanes and traffic. A learned detector
+comes only after there is a dataset and a fixed evaluation protocol.
 
 ## License
 
