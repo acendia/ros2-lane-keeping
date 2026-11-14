@@ -48,6 +48,10 @@ the model origin. The published target uses vehicle coordinates, so
 
 ![Perception stages](images/perception_pipeline.png)
 
+The binary marking mask, with the sky area hidden for display, is:
+
+![Binary white-marking mask](images/perception_mask.png)
+
 1. **Mask the markings.** Convert to HSV and keep bright, low-saturation
    pixels: `V ≥ 180`, `S ≤ 60`. The road is grey and the markings are bright.
 2. **Project to the ground.** Use the fixed camera model to turn each mask

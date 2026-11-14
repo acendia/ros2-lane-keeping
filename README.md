@@ -52,6 +52,10 @@ The data flow, ground-truth isolation, and equations are in
 [`docs/perception.md`](docs/perception.md). Control parameters are in
 [`docs/control.md`](docs/control.md).
 
+The binary white-marking mask (sky hidden) looks like this:
+
+![Binary white-marking mask](docs/images/perception_mask.png)
+
 ## Prerequisites
 
 - Ubuntu 24.04 ARM64, or Docker on Apple Silicon
