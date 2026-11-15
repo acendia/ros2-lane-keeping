@@ -137,7 +137,10 @@ All three scenarios pass the same target under the shadows:
 | left +0.3 m | yes | 96.98 | 0.137 | 0.249 | 0.300 | no | 96.4 | 10 |
 | right −0.3 m | yes | 95.73 | 0.144 | 0.300 | 0.300 | no | 96.9 | 8 |
 
-**Shadow driving check: PASS.**
+**Shadow driving check: PASS in the recorded run.**
+
+This is a stress check, not part of the supported release target. Repeat center
+runs stopped at 34.4 m and 113.2 m, so the shadow check is not repeatable yet.
 
 The shadow runs are slower and stop more often than the solid track. Perception
 republishes the last valid estimate for up to 0.25 s on a brief invalid frame,

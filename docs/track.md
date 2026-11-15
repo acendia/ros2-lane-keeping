@@ -148,8 +148,9 @@ beside the straight and the east curve. The static camera set is
 [`tests/gazebo/lighting_frames.sdf`](../tests/gazebo/lighting_frames.sdf).
 
 The six labeled frames in [`tests/frames_lighting/`](../tests/frames_lighting/)
-pass. All three driving scenarios also pass, with p95 errors of 0.230 m
-(center), 0.249 m (left), and 0.300 m (right), and 8–10 stop events. Results are
+pass. All three driving scenarios passed in the recorded run, with p95 errors of
+0.230 m (center), 0.249 m (left), and 0.300 m (right), and 8–10 stop events.
+Repeat center runs varied, so this is not a repeatable check yet. Results are
 in [`results-lighting/`](../results-lighting/).
 
 ## Camera verification

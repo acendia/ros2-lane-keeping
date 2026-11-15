@@ -51,6 +51,10 @@ lateral error against ground truth is 0.014 m and the largest width error is
 controller still stops when the estimate is older than 0.3 s. Raw results are
 in [`results-lighting/`](results-lighting/).
 
+The shadow lap is a stress check, not part of the supported release target. The
+recorded run passes, but repeat center runs have stopped at 34.4 m and 113.2 m.
+It is not repeatable yet.
+
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
 

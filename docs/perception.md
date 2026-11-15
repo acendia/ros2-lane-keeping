@@ -174,9 +174,10 @@ The shadowed mask, with the sky hidden, and the fitted boundaries:
 
 ![Shadow lane detection](images/perception_shadow_debug.png)
 
-The labeled frames pass, and the full shadow world also passes all three
-scenarios. The p95 errors are 0.230 m (center), 0.249 m (left), and 0.300 m
-(right). Fresh-valid perception is 96.4–96.9%, with 8–10 stop events. See
+The labeled frames pass. The full shadow world passed all three scenarios in
+one recorded run: p95 errors 0.230 m (center), 0.249 m (left), and 0.300 m
+(right), 96.4–96.9% fresh-valid perception, and 8–10 stop events. Repeat center
+runs varied, so the shadow lap is a stress check and not repeatable yet. See
 [`evaluation.md`](evaluation.md).
 
 Run the perception tests:
