@@ -1,9 +1,10 @@
 # Setup
 
-The passing release environment is Docker on macOS arm64. A native Ubuntu
-24.04 ARM64 VM was also built with Lima; it passes the build, tests, and camera
-gate, but fails the full scenarios under software rendering. See
-[`environment.md`](environment.md). The same Ubuntu packages apply in both.
+Docker is the supported release environment. A native Ubuntu 24.04 ARM64 VM
+was also built with Lima; it builds, passes the tests, and produces camera
+frames, but the rate is too low and the full scenarios fail. The VM is not
+supported for release runs. See [`environment.md`](environment.md). The same
+Ubuntu packages apply in both.
 
 ## Docker
 
@@ -67,7 +68,7 @@ For headless rendering without a GPU, install Mesa:
 sudo apt install -y libgl1-mesa-dri libegl1 libgles2 libglu1-mesa mesa-utils
 ```
 
-## Lima VM
+## Lima VM (not supported for release)
 
 I tested a native VM with Lima 2.3.0 and Apple Virtualization:
 
@@ -89,9 +90,10 @@ python3 -m pytest -q tests
 tools/run_camera_check.sh
 ```
 
-Headless only; there is no Gazebo GUI. The VM produces valid camera frames but runs at
-only 4.5–5.4 Hz, so the scenario run fails the release target because llvmpipe cannot sustain the
-camera rate. `results-vm/` contains the measured failure.
+Headless only; there is no Gazebo GUI. The VM produces valid camera frames,
+but runs at only 4.5–5.4 Hz. The scenario run fails the release target because
+llvmpipe cannot sustain the camera rate. `results-vm/` contains the measured
+failure.
 
 ## Build
 

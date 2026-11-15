@@ -17,7 +17,7 @@ error stays below 0.35 m.
 | left +0.3 m | yes | 87.88 s | 0.268 m | 0.300 m | no | 100% | 0 |
 | right −0.3 m | yes | 87.87 s | 0.252 m | 0.300 m | no | 100% | 0 |
 
-**Docker release target: PASS.**
+**Docker is the supported release environment. Release target: PASS.**
 
 - Tested in Docker on macOS arm64.
 - Ubuntu 24.04.5 arm64.
@@ -28,11 +28,11 @@ error stays below 0.35 m.
   camera.
 
 A native Ubuntu 24.04 ARM64 VM was also tested with Lima and Apple
-Virtualization. It builds, passes 50 tests, and produces valid camera frames, but
-runs at 4.5–5.4 Hz under Mesa llvmpipe, which is too slow for the 0.3 s stale rule. All three scenarios fail there because
-camera gaps trigger the 0.3 s stale stop and perception does not always recover.
-The VM result is a documented failure, not a pass. See
-[`docs/environment.md`](docs/environment.md) and
+Virtualization. It builds, passes 50 tests, and produces valid camera frames,
+but runs at 4.5–5.4 Hz under Mesa llvmpipe. All three scenarios fail there
+because camera gaps trigger the 0.3 s stale stop and perception does not always
+recover. The VM is not supported for release runs. The failure is kept for
+reference in [`docs/environment.md`](docs/environment.md) and
 [`results-vm/summary.md`](results-vm/summary.md).
 
 Raw Docker results are in [`results/`](results/). The method and tuning record
@@ -168,8 +168,9 @@ rename. The project name is ros2-lane-keeping.
 
 ## Known limitations
 
-- The passing results are from Docker on macOS. The native VM was tested
-  and failed the scenario target under software rendering.
+- The passing results are from Docker on macOS, which is the supported release
+  environment. The native VM was tested and failed the scenario target under
+  software rendering; it is not supported for release runs.
 - The track is a clean, flat, one-lane oval with continuous white markings.
   Dashed, worn, shadowed, or wet markings are not handled.
 - Speed is constant at 1.5 m/s. There is no curve speed planning.

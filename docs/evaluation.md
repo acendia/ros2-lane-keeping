@@ -73,7 +73,7 @@ duration, not the metric timeline.
 | left +0.3 m | yes | 87.88 | 0.168 | 0.268 | 0.300 | no | 100.0 | 0 |
 | right −0.3 m | yes | 87.87 | 0.168 | 0.252 | 0.300 | no | 100.0 | 0 |
 
-**Docker release target: PASS.**
+**Docker release target: PASS. Docker is the supported release environment.**
 
 - All three laps completed.
 - No footprint corner crossed either lane edge.

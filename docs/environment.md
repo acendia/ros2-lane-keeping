@@ -30,6 +30,11 @@ That VM builds, tests, and renders, but its 4.5–5.4 Hz frame rate is not
 usable for the control loop. Docker remains the only environment that meets
 the release target.
 
+**Support policy:** Docker is the supported release environment. The native
+VM build and check instructions are kept for reference, but VM result claims
+must not be presented as a passing release. Results from any new environment
+need the full three-scenario run before they count.
+
 ## Installation
 
 The environment is defined in [`docker/Dockerfile`](../docker/Dockerfile) and
