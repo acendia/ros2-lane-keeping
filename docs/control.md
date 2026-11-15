@@ -52,6 +52,11 @@ The controller publishes zero speed and zero yaw when:
 | `stale_lane_estimate` | Estimate is older than 0.3 s |
 | `no_odometry` | No odometry has arrived |
 | `stale_odometry` | Odometry is older than 0.3 s |
+
+Perception republishes the last valid estimate for up to 0.25 s on a brief
+invalid frame. The message keeps its original header stamp, so this controller
+still stops once the estimate is older than 0.3 s. The evaluator counts only
+fresh valid estimates.
 | `bad_lookahead` | Target is behind or non-finite |
 
 The Ackermann plugin has its own acceleration limit, so the physical car takes
@@ -110,7 +115,7 @@ The controller tests cover:
 - recovery ramp,
 - yaw smoothing.
 
-The repository suite has 67 tests:
+The repository suite has 68 tests:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'

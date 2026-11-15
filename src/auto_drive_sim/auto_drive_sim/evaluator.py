@@ -149,8 +149,9 @@ class Evaluator(Node):
 
     def _on_estimate(self, message: LaneEstimate) -> None:
         self.perception_messages += 1
-        self.latest_perception_valid = bool(message.valid)
-        if message.valid:
+        self.latest_perception_valid = bool(
+            message.valid and message.reason == '')
+        if self.latest_perception_valid:
             self.perception_valid_messages += 1
 
     def _on_cmd_vel(self, message: Twist) -> None:

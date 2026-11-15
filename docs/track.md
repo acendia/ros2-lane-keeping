@@ -148,9 +148,9 @@ beside the straight and the east curve. The static camera set is
 [`tests/gazebo/lighting_frames.sdf`](../tests/gazebo/lighting_frames.sdf).
 
 The six labeled frames in [`tests/frames_lighting/`](../tests/frames_lighting/)
-pass. A full lap in this world does not pass yet; the car stops when the inner
-boundary leaves the camera on the shadowed east curve. Results are in
-[`results-lighting/`](../results-lighting/).
+pass. All three driving scenarios also pass, with p95 errors of 0.230 m
+(center), 0.249 m (left), and 0.300 m (right), and 8–10 stop events. Results are
+in [`results-lighting/`](../results-lighting/).
 
 ## Camera verification
 
@@ -197,7 +197,8 @@ that edge. Later perception work should not treat it as a lane feature.
 - One lane only, with no center line.
 - The dashed variant has 3 m dashes, 0.75 m gaps, and a fixed light wear
   pattern. Long gaps, heavy wear, and wet markings are not tested.
-- The shadow world passes on the six labeled frames but not for a full lap.
+- The shadow world passes with 8–10 stop events. A longer perception loss still
+  stops the car.
 - Flat road with uniform materials and no texture.
 - The road is visual geometry without collision; the car uses the ground plane
   for physics.

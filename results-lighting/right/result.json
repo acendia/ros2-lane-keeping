@@ -6,23 +6,30 @@
     -0.02
   ],
   "start_offset_m": -0.3,
-  "lap_complete": false,
-  "lap_time_s": null,
-  "duration_s": 130.297,
-  "progress_m": 12.9,
+  "lap_complete": true,
+  "lap_time_s": 95.734,
+  "duration_s": 101.633,
+  "progress_m": 134.248,
   "centerline_length_m": 134.248,
-  "lateral_error_mean_abs_m": 0.0314,
-  "lateral_error_p95_abs_m": 0.1177,
+  "lateral_error_mean_abs_m": 0.1435,
+  "lateral_error_p95_abs_m": 0.2997,
   "lateral_error_max_abs_m": 0.3,
   "lane_width_m": 3.5,
   "footprint_crossing": false,
   "footprint_crossing_samples": 0,
   "first_footprint_crossing_s": null,
-  "perception_valid_percent": 8.91,
-  "perception_messages": 1976,
-  "stop_events": 1,
+  "perception_valid_percent": 96.94,
+  "perception_messages": 1538,
+  "stop_events": 8,
   "stop_times_s": [
-    26.85
+    28.95,
+    33.7,
+    45.05,
+    53.45,
+    61.65,
+    92.3,
+    100.65,
+    108.95
   ],
-  "samples": 8573
+  "samples": 6918
 }

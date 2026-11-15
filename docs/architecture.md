@@ -39,7 +39,9 @@ frame uses the global white threshold; if that fails, a local-contrast mask is
 added for paint in shadow. Dashed pieces are paired by forward distance and
 side, and each boundary gets a robust quadratic fit `y(x)`; a single dash near
 the target uses a line fit. The lane center at the 4 m camera lookahead is
-`(left + right) / 2`.
+`(left + right) / 2`. A brief invalid frame republishes the last valid estimate
+for up to 0.25 s with its original timestamp; the controller stops when the
+estimate is older than 0.3 s.
 
 The full stages, validity checks, and equations are in
 [`perception.md`](perception.md).

@@ -95,6 +95,11 @@ The node rejects `valid=false` for these reasons:
 | `lane_offset_too_large` | Lane center more than 2.5 m from camera axis |
 | `stale_image` | Image timestamp older than 0.3 s |
 
+On a brief invalid frame, the node republishes the last valid estimate for up
+to 0.25 s. The message keeps its original header stamp, so the controller still
+stops once the estimate is older than 0.3 s. The evaluator counts only fresh
+valid messages, not held ones.
+
 ## Saved frame tests
 
 The test frames are in [`tests/frames/`](../tests/frames/). They were captured
@@ -115,7 +120,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The full test suite has 67 tests.
+stale timestamps. The full test suite has 68 tests.
 
 ### Dashed and worn frames
 
@@ -169,9 +174,10 @@ The shadowed mask, with the sky hidden, and the fitted boundaries:
 
 ![Shadow lane detection](images/perception_shadow_debug.png)
 
-The labeled frames pass, but a full lap under the same shadows does not. On the
-east curve the inner boundary can leave the camera, and the car stops instead
-of inventing a lane. See [`evaluation.md`](evaluation.md).
+The labeled frames pass, and the full shadow world also passes all three
+scenarios. The p95 errors are 0.230 m (center), 0.249 m (left), and 0.300 m
+(right). Fresh-valid perception is 96.4–96.9%, with 8–10 stop events. See
+[`evaluation.md`](evaluation.md).
 
 Run the perception tests:
 
@@ -246,9 +252,11 @@ Before those changes the car stopped at 16.4 m on the dashed track. With them it
 completed all three track-version-2 laps with 100% valid estimates.
 
 For shadows I added the local-contrast fallback and measured it on six labeled
-frames. I also prototyped a single-boundary fallback that offset the visible
-line by the known lane width. It reached further into the shadowed curve but
-caused a lane departure in another run, so it is not in the shipped code.
+frames. A brief invalid frame now holds the last valid estimate for up to
+0.25 s, which removed the stop at the shadowed curve entry. I also prototyped a
+single-boundary fallback that offset the visible line by the known lane width.
+It reached further into the shadowed curve but caused a lane departure in
+another run, so it is not in the shipped code.
 
 ## Limitations
 
@@ -256,8 +264,9 @@ caused a lane departure in another run, so it is not in the shipped code.
   braking or acceleration will move the ground projection.
 - The dashed variant uses 3 m dashes, 0.75 m gaps, and a fixed light wear
   pattern. Long gaps, heavy wear, and wet markings are not tested.
-- Low-sun shadows pass on the labeled frames but not for a full lap. A shadowed
-  curve can leave only one boundary in view, and the car stops.
+- Low-sun shadows pass with 8–10 stop events and 96.4–96.9% fresh-valid
+  perception. A perception loss longer than the 0.25 s hold still stops the
+  car, and driving from one visible boundary was not kept.
 - The fitted width on a curve can be about 0.2 m wider than the true projected
   width. The controller uses the lane center, not this width.
 - The mark threshold is tuned for this scene. A different road material or

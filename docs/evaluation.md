@@ -69,9 +69,9 @@ duration, not the metric timeline.
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.87 | 0.147 | 0.231 | 0.232 | no | 100.0 | 0 |
-| left +0.3 m | yes | 87.90 | 0.167 | 0.255 | 0.300 | no | 100.0 | 0 |
-| right −0.3 m | yes | 87.86 | 0.168 | 0.276 | 0.300 | no | 100.0 | 0 |
+| center | yes | 87.88 | 0.147 | 0.231 | 0.232 | no | 100.0 | 0 |
+| left +0.3 m | yes | 87.89 | 0.168 | 0.262 | 0.300 | no | 100.0 | 0 |
+| right −0.3 m | yes | 87.87 | 0.168 | 0.256 | 0.300 | no | 100.0 | 0 |
 
 **Docker release target: PASS. Docker is the supported release environment.**
 
@@ -109,13 +109,15 @@ worn material.
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.87 | 0.147 | 0.233 | 0.233 | no | 100.0 | 0 |
-| left +0.3 m | yes | 87.89 | 0.168 | 0.252 | 0.300 | no | 100.0 | 0 |
-| right −0.3 m | yes | 87.86 | 0.169 | 0.264 | 0.300 | no | 100.0 | 0 |
+| center | yes | 91.55 | 0.135 | 0.232 | 0.233 | no | 100.0 | 4 |
+| left +0.3 m | yes | 92.52 | 0.150 | 0.245 | 0.300 | no | 100.0 | 5 |
+| right −0.3 m | yes | 87.86 | 0.170 | 0.270 | 0.300 | no | 100.0 | 0 |
 
 **Dashed and worn track: PASS.**
 
-The metrics are close to the solid track. The perception changes are described
+The metrics are close to the solid track. Center and left had brief
+`stale_lane_estimate` stops from delayed frames; the lap target does not require
+zero stops, but the counts are reported. The perception changes are described
 in [`perception.md`](perception.md): dashed pieces are paired by forward
 distance and side, and a single dash near the 4 m target can use a line fit.
 Raw results are in [`results-markings/`](../results-markings/).
@@ -127,21 +129,23 @@ poses used for the dashed frame set were captured under those shadows. All six
 frames are valid. The largest lateral-error difference from ground truth is
 0.014 m and the largest width difference is 0.057 m.
 
-A full lap under the same shadows does not pass:
+All three scenarios pass the same target under the shadows:
 
-| Scenario | Lap | Progress | p95 error | Max error | Valid (%) | Stops |
-|---|---:|---:|---:|---:|---:|---:|
-| center | no | 12.9 m | 0.001 m | 0.001 m | 11.6 | 2 |
-| left +0.3 m | no | 125.1 m | 0.208 m | 0.300 m | 74.9 | 15 |
-| right −0.3 m | no | 12.9 m | 0.118 m | 0.300 m | 8.9 | 1 |
+| Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| center | yes | 95.56 | 0.123 | 0.230 | 0.238 | no | 96.4 | 8 |
+| left +0.3 m | yes | 96.98 | 0.137 | 0.249 | 0.300 | no | 96.4 | 10 |
+| right −0.3 m | yes | 95.73 | 0.144 | 0.300 | 0.300 | no | 96.9 | 8 |
 
-**Shadow driving check: FAIL.**
+**Shadow driving check: PASS.**
 
-The labeled frames are handled, but the closed-loop run is not. On the east
-curve the camera can lose the inner boundary in shadow, and the car stops rather
-than invent a lane. I also tried a fallback that used one boundary plus the
-known lane width. It completed more of the curve in some runs but caused a lane
-departure in another, so I did not keep it. Raw results are in
+The shadow runs are slower and stop more often than the solid track. Perception
+republishes the last valid estimate for up to 0.25 s on a brief invalid frame,
+but the estimate keeps its original header timestamp. The controller still
+stops once the estimate is older than 0.3 s, and the evaluator counts only fresh
+valid messages. I also tried a fallback that drove from one visible boundary
+plus the known lane width. It caused a lane departure in one run, so it is not
+in the shipped code. Raw results are in
 [`results-lighting/`](../results-lighting/).
 
 ## VM validation
@@ -211,8 +215,10 @@ variables select the variant.
 - The passing results are from Docker on macOS. The native VM was tested and failed (see above).
 - The dashed variant uses 3 m dashes with 0.75 m gaps and a fixed wear pattern.
   Long gaps, heavy wear, and wet markings are not tested.
-- Low-sun shadows work on the labeled frames but not for a full lap. A shadowed
-  curve can leave only one boundary in view, and the car stops.
+- Low-sun shadows pass with 8–10 stop events and 96.4–96.9% fresh-valid
+  perception. A longer perception loss still stops the car.
+- Driving from one visible boundary was tested and rejected; the car can leave
+  the lane when the wrong edge is used.
 - There is no traffic, weather, or occlusion.
 - The lateral error is measured to the nearest centerline sample; the footprint
   crossing check uses the same centerline.

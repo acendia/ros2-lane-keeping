@@ -42,6 +42,15 @@ def _frame(name: str) -> np.ndarray:
     return image
 
 
+def test_within_hold():
+    """Only a recent, forward image stamp can hold the last estimate."""
+    assert not lane_perception.within_hold(None, 10.0, 0.25)
+    assert lane_perception.within_hold(10.0, 10.1, 0.25)
+    assert lane_perception.within_hold(10.0, 10.25, 0.25)
+    assert not lane_perception.within_hold(10.0, 10.3, 0.25)
+    assert not lane_perception.within_hold(10.0, 9.9, 0.25)
+
+
 def _fit(value: float) -> lane_perception.BoundaryFit:
     return lane_perception.BoundaryFit(
         coefficients=np.array([0.0, 0.0, value]),

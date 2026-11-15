@@ -4,12 +4,12 @@ Environment: Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, Gazebo Sim 8.15.0. Track
 
 | Scenario | Lap | Lap time (s) | p95 error (m) | Max error (m) | Boundary crossing | Perception valid (%) | Stop events |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| center | no | — | 0.001 | 0.001 | no | 11.6 | 2 |
-| left | no | — | 0.207 | 0.300 | no | 74.9 | 15 |
-| right | no | — | 0.118 | 0.300 | no | 8.9 | 1 |
+| center | yes | 95.56 | 0.230 | 0.238 | no | 96.4 | 8 |
+| left | yes | 96.98 | 0.249 | 0.300 | no | 96.4 | 10 |
+| right | yes | 95.73 | 0.300 | 0.300 | no | 96.9 | 8 |
 
-Release target: **FAIL**
+Release target: **PASS**
 
-- All three laps complete: no
+- All three laps complete: yes
 - No footprint boundary crossing: yes
 - p95 absolute lateral error below 0.35 m: yes

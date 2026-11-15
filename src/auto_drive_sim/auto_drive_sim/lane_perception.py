@@ -1,5 +1,6 @@
 """Lane perception from the forward camera."""
 
+from copy import deepcopy
 from dataclasses import dataclass
 import math
 from typing import Optional
@@ -76,6 +77,7 @@ class PerceptionConfig:
     local_contrast_min: int = 35
     local_value_min: int = 60
     marking_open_px: int = 3
+    hold_last_valid_s: float = 0.25
     max_image_age_s: float = 0.3
 
 
@@ -408,6 +410,15 @@ def is_stale(image_stamp_s: float, now_s: float, max_age_s: float) -> bool:
     return age > max_age_s or age < -max_age_s
 
 
+def within_hold(last_stamp_s: Optional[float], image_stamp_s: float,
+                max_hold_s: float) -> bool:
+    """Return true when the last valid estimate is recent enough to hold."""
+    if last_stamp_s is None:
+        return False
+    age = image_stamp_s - last_stamp_s
+    return 0.0 <= age <= max_hold_s
+
+
 def _analyze_mask(mask: np.ndarray, ground: GroundPlane,
                   config: PerceptionConfig) -> PerceptionResult:
     """Run the lane pipeline on a binary marking mask."""
@@ -469,8 +480,8 @@ def analyze_frame(image: np.ndarray, ground: GroundPlane,
 
 
 def make_debug_image(image: np.ndarray, result: PerceptionResult,
-                     ground: GroundPlane,
-                     config: PerceptionConfig) -> np.ndarray:
+                     ground: GroundPlane, config: PerceptionConfig,
+                     label_suffix: str = '') -> np.ndarray:
     """Draw the threshold, boundary fits, and lookahead target."""
     debug = image.copy()
     mask = threshold_markings(image, config)
@@ -503,6 +514,7 @@ def make_debug_image(image: np.ndarray, result: PerceptionResult,
         f'err={result.lateral_error_m:.2f}')
     if result.reason:
         label += f' {result.reason}'
+    label += label_suffix
     cv2.putText(debug, label, (12, 28), cv2.FONT_HERSHEY_SIMPLEX,
                 0.6, (0, 0, 0), 3, cv2.LINE_AA)
     cv2.putText(debug, label, (12, 28), cv2.FONT_HERSHEY_SIMPLEX,
@@ -524,6 +536,9 @@ class LanePerception(Node):
             LaneEstimate, '/car/lane_estimate', 10)
         self.debug_publisher = self.create_publisher(
             Image, '/car/debug_image', 10)
+        self.last_valid_estimate = None
+        self.last_valid_result = None
+        self.last_valid_stamp_s = None
         self.create_subscription(
             Image, '/car/camera/image_raw', self._on_image,
             qos_profile_sensor_data)
@@ -548,9 +563,28 @@ class LanePerception(Node):
         estimate.lookahead_target.x = result.target_x_m
         estimate.lookahead_target.y = result.target_y_m
         estimate.lookahead_target.z = 0.0
-        self.estimate_publisher.publish(estimate)
+        if result.valid:
+            self.last_valid_estimate = estimate
+            self.last_valid_result = result
+            self.last_valid_stamp_s = stamp_s
+            self.estimate_publisher.publish(estimate)
+            debug_result = result
+            suffix = ''
+        elif within_hold(
+                self.last_valid_stamp_s, stamp_s,
+                self.config.hold_last_valid_s):
+            held = deepcopy(self.last_valid_estimate)
+            held.reason = 'held_last_valid'
+            self.estimate_publisher.publish(held)
+            debug_result = self.last_valid_result
+            suffix = ' held'
+        else:
+            self.estimate_publisher.publish(estimate)
+            debug_result = result
+            suffix = ''
 
-        debug = make_debug_image(image, result, self.ground, self.config)
+        debug = make_debug_image(
+            image, debug_result, self.ground, self.config, suffix)
         debug_message = self.bridge.cv2_to_imgmsg(debug, encoding='bgr8')
         debug_message.header = message.header
         self.debug_publisher.publish(debug_message)
