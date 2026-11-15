@@ -69,9 +69,9 @@ duration, not the metric timeline.
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.87 | 0.147 | 0.231 | 0.232 | no | 100.0 | 0 |
-| left +0.3 m | yes | 87.88 | 0.168 | 0.268 | 0.300 | no | 100.0 | 0 |
-| right −0.3 m | yes | 87.87 | 0.168 | 0.252 | 0.300 | no | 100.0 | 0 |
+| center | yes | 87.89 | 0.147 | 0.231 | 0.232 | no | 100.0 | 0 |
+| left +0.3 m | yes | 87.88 | 0.171 | 0.300 | 0.300 | no | 100.0 | 0 |
+| right −0.3 m | yes | 87.87 | 0.168 | 0.266 | 0.300 | no | 100.0 | 0 |
 
 **Docker release target: PASS. Docker is the supported release environment.**
 
@@ -100,11 +100,32 @@ A shorter lookahead made the inside offset worse. Increasing the gain to 1.2
 gave the car a longer effective lookahead and reduced the curve error without
 causing oscillation.
 
+## Dashed and worn track
+
+Track version 2 keeps the same oval, start poses, controller, and evaluator. It
+changes only the markings: 3 m painted dashes, 0.75 m gaps, and every third
+dash split by a 0.18 m gap, narrowed to 75% width, and rendered in a dimmer
+worn material.
+
+| Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| center | yes | 87.86 | 0.147 | 0.233 | 0.233 | no | 100.0 | 0 |
+| left +0.3 m | yes | 87.88 | 0.168 | 0.265 | 0.300 | no | 100.0 | 0 |
+| right −0.3 m | yes | 87.87 | 0.169 | 0.258 | 0.300 | no | 100.0 | 0 |
+
+**Dashed and worn track: PASS.**
+
+The metrics are close to the solid track. The perception changes are described
+in [`perception.md`](perception.md): dashed pieces are paired by forward
+distance and side, and a single dash near the 4 m target can use a line fit.
+Raw results are in [`results-markings/`](../results-markings/).
+
 ## VM validation
 
 I also ran the same three scenarios on a native Ubuntu 24.04 ARM64 VM created
 with Lima 2.3.0 (Apple Virtualization), 8 vCPU, 12 GiB RAM, and Mesa llvmpipe.
-The VM built both packages and passed all 50 tests. It produced valid 640 ×
+The VM built both packages and passed the 50 tests present at that revision.
+It produced valid 640 ×
 360 camera frames, but at only 4.53 Hz wall / 4.80 Hz timestamps. That is below
 the rate the 0.3 s stale rule needs.
 
@@ -139,14 +160,25 @@ Run one scenario:
 ./docker/run.sh bash -lc 'tools/run_scenarios.sh center'
 ```
 
-The runner writes generated worlds to `artifacts/scenarios/` and committed
-results to `results/`.
+Run the dashed and worn track:
+
+```bash
+./docker/run.sh bash -lc 'WORLD=car_world_markings.sdf \
+  RESULTS_DIR=results-markings \
+  RUN_DIR=artifacts/scenarios-markings \
+  tools/run_scenarios.sh'
+```
+
+The runner writes generated worlds to `artifacts/scenarios/` by default and
+committed results to `results/`. The `WORLD`, `RESULTS_DIR`, and `RUN_DIR`
+variables select the variant.
 
 ## Limitations
 
 - The passing results are from Docker on macOS. The native VM was tested and failed (see above).
-- The track is a clean, flat, one-lane oval with continuous white markings.
-- There is no traffic, weather, occlusion, or dashed marking.
+- The dashed variant uses 3 m dashes with 0.75 m gaps and a fixed wear pattern.
+  Long gaps, heavy wear, shadows, and wet markings are not tested.
+- There is no traffic, weather, or occlusion.
 - The lateral error is measured to the nearest centerline sample; the footprint
   crossing check uses the same centerline.
 - Meeting this target on this track is not a claim of road-ready autonomy.

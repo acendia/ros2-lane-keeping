@@ -37,8 +37,8 @@ X   = t * ray_x
 Y   = t * ray_y
 ```
 
-Only rays with `ray_z < 0` reach the ground. The ROI is 3.5–12 m forward and
-±5 m lateral.
+Only rays with `ray_z < 0` reach the ground. The ROI is 3.5–15 m forward and
+±8 m lateral. The wider ROI keeps the outer boundary in view on the curves.
 
 The lookahead target is **4 m ahead of the camera**, which is 5.4 m ahead of
 the model origin. The published target uses vehicle coordinates, so
@@ -52,19 +52,26 @@ The binary marking mask, with the sky area hidden for display, is:
 
 ![Binary white-marking mask](images/perception_mask.png)
 
+On the dashed and worn variant, the same threshold gives:
+
+![Dashed marking mask](images/perception_mask_dashed.png)
+
 1. **Mask the markings.** Convert to HSV and keep bright, low-saturation
    pixels: `V ≥ 180`, `S ≤ 60`. The road is grey and the markings are bright.
 2. **Project to the ground.** Use the fixed camera model to turn each mask
    pixel into a ground point. The sky produces no ground points, so it is
    ignored naturally.
-3. **Cut the road ROI.** Keep points from 3.5 to 12 m forward and within ±5 m
+3. **Cut the road ROI.** Keep points from 3.5 to 15 m forward and within ±8 m
    lateral.
-4. **Find the two markings.** Take connected white components with enough
-   pixels and ground points. Keep the two largest components. Assign the
-   higher-lateral component to the left boundary and the other to the right.
+4. **Find the two markings.** Keep connected white components with at least
+   8 pixels and 5 ground points in the ROI. Dashed lines produce many pieces.
+   Pair pieces with similar forward distance and a 2.0–6.0 m lateral
+   separation, then assign the higher-lateral piece of each pair to the left
+   boundary. Attach any remaining pieces to the nearer fitted side.
 5. **Fit each boundary.** Fit a quadratic `y(x)` with three residual-rejection
-   passes. Require at least 50 inliers, a 3 m forward span, and RMS error below
-   0.15 m.
+   passes when the points span at least 2.5 m. A single dash covering 1.0–2.5 m
+   uses a line fit, and only when its nearest point is within 1.6 m of the 4 m
+   target. Require at least 50 inliers and RMS error below 0.15 m.
 6. **Validate and estimate.** Compute the lane width at the 4 m lookahead.
    Reject a pair that is swapped, narrower than 2.8 m, wider than 4.5 m, or
    has a center more than 2.5 m from the camera axis. The lateral error is the
@@ -105,7 +112,33 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The full test suite has 50 tests.
+stale timestamps. The full test suite has 61 tests.
+
+### Dashed and worn frames
+
+The dashed frame set is in
+[`tests/frames_markings/`](../tests/frames_markings/). It uses the same camera
+model at six poses on track version 2. The labels in
+[`labels.json`](../tests/frames_markings/labels.json) are computed from the
+generated offset centerlines at the 4 m lookahead.
+
+![Dashed and worn perception frames](images/perception_markings_frames.png)
+
+| Frame | Valid | Confidence | Lateral error | Ground truth | Width | Ground truth |
+|---|---|---:|---:|---:|---:|---:|
+| Straight start | yes | 0.851 | 0.006 m | 0.000 m | 3.713 m | 3.660 m |
+| Straight middle | yes | 0.859 | 0.007 m | 0.000 m | 3.711 m | 3.660 m |
+| Straight east | yes | 0.846 | 0.011 m | 0.000 m | 3.711 m | 3.660 m |
+| Curve entry | yes | 0.865 | −0.003 m | −0.010 m | 3.715 m | 3.663 m |
+| Right curve | yes | 0.834 | 1.083 m | 1.069 m | 3.743 m | 3.688 m |
+| Left curve | yes | 0.836 | −1.071 m | −1.069 m | 3.741 m | 3.688 m |
+
+All six frames are valid. The largest lateral-error difference from ground
+truth is 0.014 m and the largest width difference is 0.054 m.
+
+The fitted boundaries on a dashed curve-entry frame:
+
+![Dashed lane detection](images/perception_dashed_debug.png)
 
 Run the perception tests:
 
@@ -117,6 +150,14 @@ Recapture the saved frames:
 
 ```bash
 ./docker/run.sh bash -lc 'tools/capture_perception_frames.sh'
+```
+
+Recapture the dashed and worn set:
+
+```bash
+./docker/run.sh bash -lc \
+  'CAMERAS="straight_start straight_mid straight_east straight_curve_entry right_curve left_curve" \
+   tools/capture_perception_frames.sh tests/frames_markings tests/gazebo/markings_frames.sdf'
 ```
 
 ## Live check
@@ -156,12 +197,21 @@ extraction from per-distance pairing to two connected marking components. The
 same run also showed that width measured at 4, 6, and 8 m grows on a curve, so
 the width check now uses only the 4 m target.
 
+The first dashed extractor kept the two largest connected components. Each
+dash was a separate component, and a 1.5 m dash could not meet the 2.5 m span.
+I changed the extractor to pair and join dash pieces, widened the pairing limit
+for curve projection, and added the line fit for a single dash near the target.
+Before those changes the car stopped at 16.4 m on the dashed track. With them it
+completed all three track-version-2 laps with 100% valid estimates.
+
 ## Limitations
 
 - The method assumes a flat road and a fixed camera pitch. Body pitch from
   braking or acceleration will move the ground projection.
-- Only continuous white markings are handled. Dashed, worn, shadowed, or wet
-  markings are later work.
+- The dashed variant uses 3 m dashes, 0.75 m gaps, and a fixed light wear
+  pattern. Long gaps, heavy wear, shadows, and wet markings are not tested.
+- The fitted width on a curve can be about 0.2 m wider than the true projected
+  width. The controller uses the lane center, not this width.
 - The mark threshold is tuned for this scene. A different road material or
   lighting needs a new threshold.
 - The camera cannot see the ground closer than about 3.4 m, so the lookahead is

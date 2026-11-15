@@ -2,7 +2,8 @@
 
 **Status: DOCKER PASSES THE CAMERA GATE AND RELEASE TARGET. THE LIMA VM
 PRODUCES VALID CAMERA FRAMES BUT IS TOO SLOW FOR THE RELEASE TARGET.** The VM
-builds, passes 50 tests, and renders 640 × 360 frames at 4.5–5.4 Hz. That rate
+builds, passes the 50 tests present at that revision, and renders 640 × 360
+frames at 4.5–5.4 Hz. That rate
 is not enough for the 0.3 s stale rule, so all three VM scenarios fail. See
 [VM validation](#vm-validation-lima).
 
@@ -117,7 +118,7 @@ I created a native VM with Lima 2.3.0 using Apple Virtualization (`vz`):
 - Mesa llvmpipe software rendering, headless only
 
 The public repository was cloned inside the VM. `colcon build --symlink-install`
-finished both packages and all 50 tests passed.
+finished both packages and the 50 tests present at that revision passed.
 
 ### VM camera check
 

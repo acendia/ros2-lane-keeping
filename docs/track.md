@@ -6,8 +6,12 @@ It has two 20 m straights and two semicircular ends of 15 m radius. The clear
 lane is 3.5 m wide between the inner edges of two continuous white boundary
 strips.
 
-This track is deliberately simple. It has no other lanes, no intersections, no
-traffic, and no obstacles.
+Track version 2 keeps the same oval and start pose but uses dashed boundaries
+with worn segments. It is generated from
+[`src/auto_drive_sim/config/track_markings.yaml`](../src/auto_drive_sim/config/track_markings.yaml).
+
+Both tracks are deliberately simple. They have no other lanes, no
+intersections, no traffic, and no obstacles.
 
 ## Dimensions
 
@@ -22,6 +26,19 @@ traffic, and no obstacles.
 | Asphalt width | 5.0 m |
 | Centerline sample spacing | 0.1 m |
 | Centerline samples | 1342 |
+
+Track version 2 changes only the markings:
+
+| Item | Value |
+|---|---|
+| Dash length | 3.0 m |
+| Gap length | 0.75 m |
+| Boundary marking width | 0.16 m |
+| Worn pattern | every third dash |
+| Worn gap | 0.18 m split in the middle of the dash |
+| Worn width | 75% of the normal marking width |
+| Worn colour | 0.78, 0.78, 0.74 |
+| Marking pieces per side | 48 |
 
 ## Coordinate frame
 
@@ -63,11 +80,23 @@ src/auto_drive_sim/models/road/
     ├── left_boundary.obj
     ├── right_boundary.obj
     └── road.mtl
+
+src/auto_drive_sim/models/road_markings/
+├── model.config
+├── model.sdf
+├── track_meta.json
+├── centerline.csv
+└── meshes/
+    ├── asphalt.obj
+    ├── left_boundary.obj
+    ├── right_boundary.obj
+    └── road.mtl
 ```
 
-The three meshes are closed triangle strips. Each boundary is one continuous
-mesh around the whole oval, not one mesh per straight or curve, so there are no
-mesh joints at the straight-to-curve transitions.
+For track version 1, each boundary is one continuous closed triangle strip, not
+one mesh per straight or curve, so there are no mesh joints at the
+straight-to-curve transitions. For track version 2, each boundary object holds
+one group per dash or worn piece with its own material.
 
 ## Regenerating the assets
 
@@ -75,6 +104,9 @@ Run the generator from the repository root:
 
 ```bash
 python3 tools/generate_track.py
+python3 tools/generate_track.py \
+  --config src/auto_drive_sim/config/track_markings.yaml \
+  --output src/auto_drive_sim/models/road_markings
 ```
 
 Inside the Docker environment:
@@ -90,9 +122,10 @@ python3 -m pytest -q tests/test_track_geometry.py
 ```
 
 The tests check the centerline length and closure, the start pose, the 3.5 m
-lane width, the asphalt bounds and height, the curvature values, and that two
-independent generations are byte-identical. One test also compares the
-committed assets with a fresh generation, so stale assets fail the suite.
+lane width, the asphalt bounds and height, the curvature values, the dashed and
+worn pattern, and that two independent generations are byte-identical. They
+also compare both committed asset sets with fresh generations and check that
+every mesh face index exists, so stale or broken assets fail the suite.
 
 ## Viewing the world
 
@@ -103,8 +136,9 @@ ros2 launch auto_drive_sim track_preview.launch.py gui:=false
 ```
 
 The launch sets `GZ_SIM_RESOURCE_PATH` to the installed model directory and
-bridges `/clock`. `gui:=true` starts the Gazebo client on a machine with a
-display; the Docker environment on this Mac has no display.
+bridges `/clock`. To load the dashed and worn road, launch the demo with
+`world:=car_world_markings.sdf`. `gui:=true` starts the Gazebo client on a
+machine with a display; the Docker environment on this Mac has no display.
 
 ## Camera verification
 
@@ -137,6 +171,10 @@ The lower rates come from rendering four 640 × 360 cameras at once with the
 CPU-only Mesa llvmpipe backend. The single-camera Milestone 0 check produced
 15.15 Hz in the same container.
 
+The dashed and worn variant has its own static frame set in
+[`tests/frames_markings/`](../tests/frames_markings/), captured from six camera
+poses with the same intrinsics. Those frames are used by the perception tests.
+
 At the distant outer asphalt edge, the image shows a faint dashed fringe. It
 appears to be subpixel aliasing of the road edge under software rendering, not
 a gap in a lane marking; the white marking itself is continuous and inset from
@@ -144,8 +182,10 @@ that edge. Later perception work should not treat it as a lane feature.
 
 ## Limitations
 
-- One lane only, with continuous boundaries and no center line.
-- Flat road with uniform materials and no texture, wear, or dashed markings.
-- The road is visual geometry without collision; the car will use the ground
-  plane for physics.
+- One lane only, with no center line.
+- The dashed variant has 3 m dashes, 0.75 m gaps, and a fixed light wear
+  pattern. Long gaps, heavy wear, shadows, and wet markings are not tested.
+- Flat road with uniform materials and no texture.
+- The road is visual geometry without collision; the car uses the ground plane
+  for physics.
 - The Docker GUI path is untested.

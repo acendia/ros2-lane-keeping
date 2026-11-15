@@ -13,9 +13,9 @@ error stays below 0.35 m.
 
 | Scenario | Lap | Lap time | p95 error | Max error | Crossing | Valid | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.87 s | 0.231 m | 0.232 m | no | 100% | 0 |
-| left +0.3 m | yes | 87.88 s | 0.268 m | 0.300 m | no | 100% | 0 |
-| right −0.3 m | yes | 87.87 s | 0.252 m | 0.300 m | no | 100% | 0 |
+| center | yes | 87.89 s | 0.231 m | 0.232 m | no | 100% | 0 |
+| left +0.3 m | yes | 87.88 s | 0.300 m | 0.300 m | no | 100% | 0 |
+| right −0.3 m | yes | 87.87 s | 0.266 m | 0.300 m | no | 100% | 0 |
 
 **Docker is the supported release environment. Release target: PASS.**
 
@@ -24,16 +24,22 @@ error stays below 0.35 m.
 - ROS 2 Jazzy.
 - Gazebo Sim 8.15.0.
 - Track version 1, 134.248 m centerline, 3.5 m lane.
-- Demo and evaluation run: commit `89de4eb`, 1.5 m/s, lookahead gain 1.2, 90°
+- Demo and evaluation run: commit `7484c39`, 1.5 m/s, lookahead gain 1.2, 90°
   camera.
 
 A native Ubuntu 24.04 ARM64 VM was also tested with Lima and Apple
-Virtualization. It builds, passes 50 tests, and produces valid camera frames,
-but runs at 4.5–5.4 Hz under Mesa llvmpipe. All three scenarios fail there
-because camera gaps trigger the 0.3 s stale stop and perception does not always
-recover. The VM is not supported for release runs. The failure is kept for
-reference in [`docs/environment.md`](docs/environment.md) and
-[`results-vm/summary.md`](results-vm/summary.md).
+Virtualization. It builds, passes the 50 tests present in that revision, and
+produces valid camera frames, but runs at 4.5–5.4 Hz under Mesa llvmpipe. All
+three scenarios fail there because camera gaps trigger the 0.3 s stale stop and
+perception does not always recover. The VM is not supported for release runs.
+The failure is kept for reference in [`docs/environment.md`](docs/environment.md)
+and [`results-vm/summary.md`](results-vm/summary.md).
+
+The same three scenarios also pass on track version 2, which has 3 m dashed
+boundaries, 0.75 m gaps, and every third dash worn. All three laps completed,
+perception was valid for 100% of messages, and there were no stops. The p95
+lateral errors were 0.233 m (center), 0.265 m (left), and 0.258 m (right). Raw
+results are in [`results-markings/`](results-markings/).
 
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
@@ -135,7 +141,7 @@ Fast tests:
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-The suite has 50 tests: track geometry, car and bridge limits, perception
+The suite has 61 tests: track geometry, car and bridge limits, perception
 frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
 
 Run the three release scenarios:
@@ -156,7 +162,8 @@ ros2-lane-keeping/
 │   └── auto_drive_sim_interfaces/      # LaneEstimate.msg
 ├── tools/                              # track, capture, drive, evaluation tools
 ├── tests/                              # unit tests and saved camera frames
-├── results/                            # Docker scenario JSON, CSV, summary
+├── results/                            # solid-track scenario JSON, CSV, summary
+├── results-markings/                   # dashed and worn track scenario results
 ├── results-vm/                         # native VM result (failed target)
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
 └── docs/                               # setup, architecture, track, car,
@@ -171,8 +178,9 @@ rename. The project name is ros2-lane-keeping.
 - The passing results are from Docker on macOS, which is the supported release
   environment. The native VM was tested and failed the scenario target under
   software rendering; it is not supported for release runs.
-- The track is a clean, flat, one-lane oval with continuous white markings.
-  Dashed, worn, shadowed, or wet markings are not handled.
+- The track is a clean, flat, one-lane oval. The dashed variant uses 3 m
+  dashes with 0.75 m gaps and light wear. Long gaps, heavy wear, shadows, and
+  wet markings are not tested.
 - Speed is constant at 1.5 m/s. There is no curve speed planning.
 - The controller stops on any perception gap instead of coasting through it.
 - There is no traffic, weather, occlusion, or obstacle handling.
@@ -180,10 +188,10 @@ rename. The project name is ros2-lane-keeping.
 
 ## Next
 
-Add dashed and worn markings, shadows, and lighting changes, with a labeled
-frame set to measure detection quality. Then add curve speed planning and
-smoother steering, followed by multiple lanes and traffic. A learned detector
-comes only after there is a dataset and a fixed evaluation protocol.
+Add shadows and lighting changes, with the labeled frame set extended to those
+cases. Then add curve speed planning and smoother steering, followed by
+multiple lanes and traffic. A learned detector comes only after there is a
+dataset and a fixed evaluation protocol.
 
 ## License
 
