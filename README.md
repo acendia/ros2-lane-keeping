@@ -26,6 +26,8 @@ error stays below 0.35 m.
 - Track version 1, 134.248 m centerline, 3.5 m lane.
 - Demo and evaluation run: commit `c2c2fb5`, 1.5 m/s, lookahead gain 1.2, 90°
   camera.
+- 2.0 m/s speed-planning run: commit `3855f66`, 0.15 m/s² lateral limit,
+  1.0 m/s² deceleration.
 
 A native Ubuntu 24.04 ARM64 VM was also tested with Lima and Apple
 Virtualization. It builds, passes the 50 tests present in that revision, and
