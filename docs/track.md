@@ -140,6 +140,18 @@ bridges `/clock`. To load the dashed and worn road, launch the demo with
 `world:=car_world_markings.sdf`. `gui:=true` starts the Gazebo client on a
 machine with a display; the Docker environment on this Mac has no display.
 
+## Shadow test world
+
+`car_world_lighting.sdf` keeps the dashed and worn road but lowers the ambient
+light, moves the sun low in the south, and adds four shadow-casting buildings
+beside the straight and the east curve. The static camera set is
+[`tests/gazebo/lighting_frames.sdf`](../tests/gazebo/lighting_frames.sdf).
+
+The six labeled frames in [`tests/frames_lighting/`](../tests/frames_lighting/)
+pass. A full lap in this world does not pass yet; the car stops when the inner
+boundary leaves the camera on the shadowed east curve. Results are in
+[`results-lighting/`](../results-lighting/).
+
 ## Camera verification
 
 Run:
@@ -184,7 +196,8 @@ that edge. Later perception work should not treat it as a lane feature.
 
 - One lane only, with no center line.
 - The dashed variant has 3 m dashes, 0.75 m gaps, and a fixed light wear
-  pattern. Long gaps, heavy wear, shadows, and wet markings are not tested.
+  pattern. Long gaps, heavy wear, and wet markings are not tested.
+- The shadow world passes on the six labeled frames but not for a full lap.
 - Flat road with uniform materials and no texture.
 - The road is visual geometry without collision; the car uses the ground plane
   for physics.

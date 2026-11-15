@@ -72,6 +72,10 @@ class PerceptionConfig:
     max_center_offset_m: float = 2.5
     white_value_min: int = 180
     white_saturation_max: int = 60
+    local_contrast_window_px: int = 51
+    local_contrast_min: int = 35
+    local_value_min: int = 60
+    marking_open_px: int = 3
     max_image_age_s: float = 0.3
 
 
@@ -171,14 +175,36 @@ class GroundPlane:
         return int(round(u)), int(round(v))
 
 
-def threshold_markings(image: np.ndarray,
-                       config: PerceptionConfig) -> np.ndarray:
-    """Return a binary mask of bright, low-saturation markings."""
+def threshold_markings(image: np.ndarray, config: PerceptionConfig,
+                       use_local: bool = True) -> np.ndarray:
+    """Return a mask of bright markings, with optional shadow handling.
+
+    The global threshold handles lit paint. The local-contrast pass compares
+    each pixel with a blurred neighbourhood, so paint in shadow still stands
+    out from the road. A small opening removes isolated shadow-edge noise.
+    """
     hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
-    return cv2.inRange(
+    bright = cv2.inRange(
         hsv,
         (0, 0, config.white_value_min),
         (180, config.white_saturation_max, 255))
+    if not use_local:
+        return bright
+
+    value = hsv[:, :, 2]
+    window = config.local_contrast_window_px
+    background = cv2.GaussianBlur(value, (window, window), 0)
+    local_contrast = cv2.subtract(value, background)
+    local = ((local_contrast >= config.local_contrast_min) &
+             (hsv[:, :, 1] <= config.white_saturation_max) &
+             (value >= config.local_value_min)).astype(np.uint8) * 255
+    mask = cv2.bitwise_or(bright, local)
+
+    open_size = config.marking_open_px
+    if open_size >= 2:
+        kernel = np.ones((open_size, open_size), np.uint8)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+    return mask
 
 
 def _marking_components(mask: np.ndarray, ground: GroundPlane,
@@ -382,10 +408,9 @@ def is_stale(image_stamp_s: float, now_s: float, max_age_s: float) -> bool:
     return age > max_age_s or age < -max_age_s
 
 
-def analyze_frame(image: np.ndarray, ground: GroundPlane,
+def _analyze_mask(mask: np.ndarray, ground: GroundPlane,
                   config: PerceptionConfig) -> PerceptionResult:
-    """Run the pure lane pipeline on one BGR frame."""
-    mask = threshold_markings(image, config)
+    """Run the lane pipeline on a binary marking mask."""
     (left_x, left_y), (right_x, right_y) = extract_boundary_points(
         mask, ground, config)
     if left_x.size == 0 and right_x.size == 0:
@@ -427,6 +452,20 @@ def analyze_frame(image: np.ndarray, ground: GroundPlane,
         left_fit=left,
         right_fit=right,
     )
+
+
+def analyze_frame(image: np.ndarray, ground: GroundPlane,
+                  config: PerceptionConfig) -> PerceptionResult:
+    """Try the lit threshold first, then the shadow fallback."""
+    bright_mask = threshold_markings(image, config, use_local=False)
+    result = _analyze_mask(bright_mask, ground, config)
+    if result.valid:
+        return result
+
+    local_mask = threshold_markings(image, config, use_local=True)
+    if np.array_equal(local_mask, bright_mask):
+        return result
+    return _analyze_mask(local_mask, ground, config)
 
 
 def make_debug_image(image: np.ndarray, result: PerceptionResult,

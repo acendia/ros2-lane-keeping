@@ -69,9 +69,9 @@ duration, not the metric timeline.
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.89 | 0.147 | 0.231 | 0.232 | no | 100.0 | 0 |
-| left +0.3 m | yes | 87.88 | 0.171 | 0.300 | 0.300 | no | 100.0 | 0 |
-| right −0.3 m | yes | 87.87 | 0.168 | 0.266 | 0.300 | no | 100.0 | 0 |
+| center | yes | 87.87 | 0.147 | 0.231 | 0.232 | no | 100.0 | 0 |
+| left +0.3 m | yes | 87.90 | 0.167 | 0.255 | 0.300 | no | 100.0 | 0 |
+| right −0.3 m | yes | 87.86 | 0.168 | 0.276 | 0.300 | no | 100.0 | 0 |
 
 **Docker release target: PASS. Docker is the supported release environment.**
 
@@ -109,9 +109,9 @@ worn material.
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.86 | 0.147 | 0.233 | 0.233 | no | 100.0 | 0 |
-| left +0.3 m | yes | 87.88 | 0.168 | 0.265 | 0.300 | no | 100.0 | 0 |
-| right −0.3 m | yes | 87.87 | 0.169 | 0.258 | 0.300 | no | 100.0 | 0 |
+| center | yes | 87.87 | 0.147 | 0.233 | 0.233 | no | 100.0 | 0 |
+| left +0.3 m | yes | 87.89 | 0.168 | 0.252 | 0.300 | no | 100.0 | 0 |
+| right −0.3 m | yes | 87.86 | 0.169 | 0.264 | 0.300 | no | 100.0 | 0 |
 
 **Dashed and worn track: PASS.**
 
@@ -119,6 +119,30 @@ The metrics are close to the solid track. The perception changes are described
 in [`perception.md`](perception.md): dashed pieces are paired by forward
 distance and side, and a single dash near the 4 m target can use a line fit.
 Raw results are in [`results-markings/`](../results-markings/).
+
+## Shadow and low-light check
+
+I added a low-sun world with four shadow-casting buildings. The same six camera
+poses used for the dashed frame set were captured under those shadows. All six
+frames are valid. The largest lateral-error difference from ground truth is
+0.014 m and the largest width difference is 0.057 m.
+
+A full lap under the same shadows does not pass:
+
+| Scenario | Lap | Progress | p95 error | Max error | Valid (%) | Stops |
+|---|---:|---:|---:|---:|---:|---:|
+| center | no | 12.9 m | 0.001 m | 0.001 m | 11.6 | 2 |
+| left +0.3 m | no | 125.1 m | 0.208 m | 0.300 m | 74.9 | 15 |
+| right −0.3 m | no | 12.9 m | 0.118 m | 0.300 m | 8.9 | 1 |
+
+**Shadow driving check: FAIL.**
+
+The labeled frames are handled, but the closed-loop run is not. On the east
+curve the camera can lose the inner boundary in shadow, and the car stops rather
+than invent a lane. I also tried a fallback that used one boundary plus the
+known lane width. It completed more of the curve in some runs but caused a lane
+departure in another, so I did not keep it. Raw results are in
+[`results-lighting/`](../results-lighting/).
 
 ## VM validation
 
@@ -169,6 +193,15 @@ Run the dashed and worn track:
   tools/run_scenarios.sh'
 ```
 
+Run the low-sun shadow check:
+
+```bash
+./docker/run.sh bash -lc 'WORLD=car_world_lighting.sdf \
+  RESULTS_DIR=results-lighting \
+  RUN_DIR=artifacts/scenarios-lighting \
+  tools/run_scenarios.sh'
+```
+
 The runner writes generated worlds to `artifacts/scenarios/` by default and
 committed results to `results/`. The `WORLD`, `RESULTS_DIR`, and `RUN_DIR`
 variables select the variant.
@@ -177,7 +210,9 @@ variables select the variant.
 
 - The passing results are from Docker on macOS. The native VM was tested and failed (see above).
 - The dashed variant uses 3 m dashes with 0.75 m gaps and a fixed wear pattern.
-  Long gaps, heavy wear, shadows, and wet markings are not tested.
+  Long gaps, heavy wear, and wet markings are not tested.
+- Low-sun shadows work on the labeled frames but not for a full lap. A shadowed
+  curve can leave only one boundary in view, and the car stops.
 - There is no traffic, weather, or occlusion.
 - The lateral error is measured to the nearest centerline sample; the footprint
   crossing check uses the same centerline.

@@ -110,7 +110,7 @@ The controller tests cover:
 - recovery ramp,
 - yaw smoothing.
 
-The repository suite has 61 tests:
+The repository suite has 67 tests:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'

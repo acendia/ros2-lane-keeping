@@ -13,6 +13,18 @@ FRAMES = REPO_ROOT / 'tests/frames'
 MARKINGS_FRAMES = REPO_ROOT / 'tests/frames_markings'
 MARKINGS_LABELS = json.loads(
     (MARKINGS_FRAMES / 'labels.json').read_text(encoding='utf-8'))
+LIGHTING_FRAMES = REPO_ROOT / 'tests/frames_lighting'
+LIGHTING_LABELS = json.loads(
+    (LIGHTING_FRAMES / 'labels.json').read_text(encoding='utf-8'))
+LABELED_SETS = {
+    'markings': (MARKINGS_FRAMES, MARKINGS_LABELS),
+    'lighting': (LIGHTING_FRAMES, LIGHTING_LABELS),
+}
+LABELED_CASES = [
+    (set_name, name)
+    for set_name, (_, labels) in LABELED_SETS.items()
+    for name in sorted(labels['frames'])
+]
 _SPEC = importlib.util.spec_from_file_location(
     'lane_perception',
     REPO_ROOT / 'src/auto_drive_sim/auto_drive_sim/lane_perception.py')
@@ -40,33 +52,35 @@ def _fit(value: float) -> lane_perception.BoundaryFit:
     )
 
 
-def _markings_frame(name: str) -> np.ndarray:
-    image = cv2.imread(str(MARKINGS_FRAMES / f'{name}.png'))
-    assert image is not None, f'missing markings frame {name}'
+def _labeled_frame(set_name: str, name: str) -> np.ndarray:
+    directory, _ = LABELED_SETS[set_name]
+    image = cv2.imread(str(directory / f'{name}.png'))
+    assert image is not None, f'missing {set_name} frame {name}'
     return image
 
 
-@pytest.mark.parametrize('name', sorted(MARKINGS_LABELS['frames']))
-def test_markings_frame_labels(name):
-    """Dashed and worn frames must match their ground-truth labels."""
-    label = MARKINGS_LABELS['frames'][name]
+@pytest.mark.parametrize('set_name,name', LABELED_CASES)
+def test_labeled_frame(set_name, name):
+    """Dashed, worn, and shadowed frames must match their labels."""
+    directory, labels = LABELED_SETS[set_name]
+    label = labels['frames'][name]
     result = lane_perception.analyze_frame(
-        _markings_frame(name), GROUND, CONFIG)
+        _labeled_frame(set_name, name), GROUND, CONFIG)
     assert result.valid == label['valid']
     assert result.reason == ''
     assert result.lateral_error_m == pytest.approx(
         label['lateral_error_m'],
-        abs=MARKINGS_LABELS['lateral_tolerance_m'])
+        abs=labels['lateral_tolerance_m'])
     assert result.lane_width_m == pytest.approx(
         label['lane_width_m'],
-        abs=MARKINGS_LABELS['width_tolerance_m'])
+        abs=labels['width_tolerance_m'])
     assert result.confidence > 0.6
 
 
 def test_dashed_frame_groups_multiple_pieces():
     """A dashed frame must combine pieces from both boundaries."""
     mask = lane_perception.threshold_markings(
-        _markings_frame('straight_start'), CONFIG)
+        _labeled_frame('markings', 'straight_start'), CONFIG)
     components = lane_perception._marking_components(
         mask, GROUND, CONFIG)
     pairs = lane_perception._component_pairs(components, CONFIG)

@@ -34,10 +34,12 @@ The evaluation bridge is in a separate config file,
 The camera is fixed at 1.3 m, pitched 0.05 rad down, with a 90° horizontal
 field of view. Each pixel is projected onto the ground plane using the camera
 height and intrinsics. Bright, low-saturation pixels inside a road ROI from
-3.5 to 15 m forward and ±8 m lateral are grouped into marking pieces. Dashed
-pieces are paired by forward distance and side, and each boundary gets a robust
-quadratic fit `y(x)`; a single dash near the target uses a line fit. The lane
-center at the 4 m camera lookahead is `(left + right) / 2`.
+3.5 to 15 m forward and ±8 m lateral are grouped into marking pieces. A lit
+frame uses the global white threshold; if that fails, a local-contrast mask is
+added for paint in shadow. Dashed pieces are paired by forward distance and
+side, and each boundary gets a robust quadratic fit `y(x)`; a single dash near
+the target uses a line fit. The lane center at the 4 m camera lookahead is
+`(left + right) / 2`.
 
 The full stages, validity checks, and equations are in
 [`perception.md`](perception.md).

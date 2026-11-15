@@ -13,9 +13,9 @@ error stays below 0.35 m.
 
 | Scenario | Lap | Lap time | p95 error | Max error | Crossing | Valid | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.89 s | 0.231 m | 0.232 m | no | 100% | 0 |
-| left +0.3 m | yes | 87.88 s | 0.300 m | 0.300 m | no | 100% | 0 |
-| right −0.3 m | yes | 87.87 s | 0.266 m | 0.300 m | no | 100% | 0 |
+| center | yes | 87.87 s | 0.231 m | 0.232 m | no | 100% | 0 |
+| left +0.3 m | yes | 87.90 s | 0.255 m | 0.300 m | no | 100% | 0 |
+| right −0.3 m | yes | 87.86 s | 0.276 m | 0.300 m | no | 100% | 0 |
 
 **Docker is the supported release environment. Release target: PASS.**
 
@@ -38,8 +38,15 @@ and [`results-vm/summary.md`](results-vm/summary.md).
 The same three scenarios also pass on track version 2, which has 3 m dashed
 boundaries, 0.75 m gaps, and every third dash worn. All three laps completed,
 perception was valid for 100% of messages, and there were no stops. The p95
-lateral errors were 0.233 m (center), 0.265 m (left), and 0.258 m (right). Raw
+lateral errors were 0.233 m (center), 0.252 m (left), and 0.264 m (right). Raw
 results are in [`results-markings/`](results-markings/).
+
+I also captured six labeled frames under low sun with building shadows. All six
+are valid. The largest lateral error against ground truth is 0.014 m and the
+largest width error is 0.057 m. A full lap under those shadows does not pass
+yet: center and right stopped at 12.9 m, and left reached 125.1 m but stopped
+15 times. The car stops when a shadowed curve leaves only one boundary in view.
+Raw results are in [`results-lighting/`](results-lighting/).
 
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
@@ -141,7 +148,7 @@ Fast tests:
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-The suite has 61 tests: track geometry, car and bridge limits, perception
+The suite has 67 tests: track geometry, car and bridge limits, perception
 frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
 
 Run the three release scenarios:
@@ -164,6 +171,7 @@ ros2-lane-keeping/
 ├── tests/                              # unit tests and saved camera frames
 ├── results/                            # solid-track scenario JSON, CSV, summary
 ├── results-markings/                   # dashed and worn track scenario results
+├── results-lighting/                   # low-sun shadow check (failed target)
 ├── results-vm/                         # native VM result (failed target)
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
 └── docs/                               # setup, architecture, track, car,
@@ -179,8 +187,11 @@ rename. The project name is ros2-lane-keeping.
   environment. The native VM was tested and failed the scenario target under
   software rendering; it is not supported for release runs.
 - The track is a clean, flat, one-lane oval. The dashed variant uses 3 m
-  dashes with 0.75 m gaps and light wear. Long gaps, heavy wear, shadows, and
-  wet markings are not tested.
+  dashes with 0.75 m gaps and light wear. Long gaps, heavy wear, and wet
+  markings are not tested.
+- Low-sun shadows are handled on the labeled frames, but a full shadow lap is
+  not passing. The car stops when a shadowed curve leaves only one boundary in
+  view.
 - Speed is constant at 1.5 m/s. There is no curve speed planning.
 - The controller stops on any perception gap instead of coasting through it.
 - There is no traffic, weather, occlusion, or obstacle handling.
@@ -188,10 +199,10 @@ rename. The project name is ros2-lane-keeping.
 
 ## Next
 
-Add shadows and lighting changes, with the labeled frame set extended to those
-cases. Then add curve speed planning and smoother steering, followed by
-multiple lanes and traffic. A learned detector comes only after there is a
-dataset and a fixed evaluation protocol.
+Add safe partial-visibility handling so a shadowed curve can use one visible
+boundary without leaving the lane. Then add curve speed planning and smoother
+steering, followed by multiple lanes and traffic. A learned detector comes only
+after there is a dataset and a fixed evaluation protocol.
 
 ## License
 

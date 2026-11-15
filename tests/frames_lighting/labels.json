@@ -1,0 +1,87 @@
+{
+  "track": "road_markings",
+  "method": "Expected lane center and width at 4.0 m forward, from the generated offset centerline polylines. Same camera poses as tests/frames_markings.",
+  "lateral_tolerance_m": 0.12,
+  "width_tolerance_m": 0.12,
+  "frames": {
+    "straight_start": {
+      "pose": [
+        -8.6,
+        15.0,
+        1.3,
+        0.0,
+        0.05,
+        0.0
+      ],
+      "valid": true,
+      "lateral_error_m": 0.0,
+      "lane_width_m": 3.66
+    },
+    "straight_mid": {
+      "pose": [
+        -3.2,
+        15.0,
+        1.3,
+        0.0,
+        0.05,
+        0.0
+      ],
+      "valid": true,
+      "lateral_error_m": 0.0,
+      "lane_width_m": 3.66
+    },
+    "straight_east": {
+      "pose": [
+        3.8,
+        15.0,
+        1.3,
+        0.0,
+        0.05,
+        0.0
+      ],
+      "valid": true,
+      "lateral_error_m": 0.0,
+      "lane_width_m": 3.66
+    },
+    "straight_curve_entry": {
+      "pose": [
+        6.55,
+        15.0,
+        1.3,
+        0.0,
+        0.05,
+        0.0
+      ],
+      "valid": true,
+      "lateral_error_m": -0.0103,
+      "lane_width_m": 3.6625
+    },
+    "right_curve": {
+      "pose": [
+        10.0,
+        15.0,
+        1.3,
+        0.0,
+        0.05,
+        -0.4
+      ],
+      "valid": true,
+      "lateral_error_m": 1.0689,
+      "lane_width_m": 3.6882
+    },
+    "left_curve": {
+      "pose": [
+        -10.0,
+        15.0,
+        1.3,
+        0.0,
+        0.05,
+        3.5416
+      ],
+      "valid": true,
+      "lateral_error_m": -1.0689,
+      "lane_width_m": 3.6882
+    }
+  },
+  "lighting": "Low sun from the south, ambient 0.30, shadow-casting buildings beside the straight and curve."
+}

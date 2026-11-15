@@ -43,11 +43,7 @@ fi
 
 gz topic -l >"$log_dir/gz_topics.txt"
 
-if [ "$(basename "$world")" = "markings_frames.sdf" ]; then
-  topic_prefix="/markings_frames"
-else
-  topic_prefix="/perception_frames"
-fi
+topic_prefix="/$(basename "$world" .sdf)"
 
 bridge_args=()
 for camera in "${cameras[@]}"; do

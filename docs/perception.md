@@ -57,7 +57,10 @@ On the dashed and worn variant, the same threshold gives:
 ![Dashed marking mask](images/perception_mask_dashed.png)
 
 1. **Mask the markings.** Convert to HSV and keep bright, low-saturation
-   pixels: `V ≥ 180`, `S ≤ 60`. The road is grey and the markings are bright.
+   pixels: `V ≥ 180`, `S ≤ 60`. If that mask does not produce a valid lane,
+   add a local-contrast pass: the value must exceed a 51 × 51 blurred
+   background by 35, stay at `S ≤ 60` and `V ≥ 60`. A 3 × 3 opening removes
+   isolated shadow edges. Lit frames stay on the global path.
 2. **Project to the ground.** Use the fixed camera model to turn each mask
    pixel into a ground point. The sky produces no ground points, so it is
    ignored naturally.
@@ -112,7 +115,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The full test suite has 61 tests.
+stale timestamps. The full test suite has 67 tests.
 
 ### Dashed and worn frames
 
@@ -140,6 +143,36 @@ The fitted boundaries on a dashed curve-entry frame:
 
 ![Dashed lane detection](images/perception_dashed_debug.png)
 
+### Shadow and low-light frames
+
+The shadow set uses the same six poses under a low sun with shadow-casting
+buildings. It is in [`tests/frames_lighting/`](../tests/frames_lighting/), with
+labels in [`labels.json`](../tests/frames_lighting/labels.json).
+
+![Shadow and low-light perception frames](images/perception_lighting_frames.png)
+
+| Frame | Valid | Confidence | Lateral error | Ground truth | Width | Ground truth |
+|---|---|---:|---:|---:|---:|---:|
+| Straight start | yes | 0.862 | 0.006 m | 0.000 m | 3.712 m | 3.660 m |
+| Straight middle | yes | 0.844 | 0.010 m | 0.000 m | 3.712 m | 3.660 m |
+| Straight east | yes | 0.742 | −0.014 m | 0.000 m | 3.690 m | 3.660 m |
+| Curve entry | yes | 0.869 | −0.002 m | −0.010 m | 3.716 m | 3.663 m |
+| Right curve | yes | 0.825 | 1.077 m | 1.069 m | 3.745 m | 3.688 m |
+| Left curve | yes | 0.854 | −1.083 m | −1.069 m | 3.710 m | 3.688 m |
+
+All six frames are valid. The largest lateral-error difference is 0.014 m and
+the largest width difference is 0.057 m.
+
+The shadowed mask, with the sky hidden, and the fitted boundaries:
+
+![Shadow marking mask](images/perception_mask_shadow.png)
+
+![Shadow lane detection](images/perception_shadow_debug.png)
+
+The labeled frames pass, but a full lap under the same shadows does not. On the
+east curve the inner boundary can leave the camera, and the car stops instead
+of inventing a lane. See [`evaluation.md`](evaluation.md).
+
 Run the perception tests:
 
 ```bash
@@ -158,6 +191,14 @@ Recapture the dashed and worn set:
 ./docker/run.sh bash -lc \
   'CAMERAS="straight_start straight_mid straight_east straight_curve_entry right_curve left_curve" \
    tools/capture_perception_frames.sh tests/frames_markings tests/gazebo/markings_frames.sdf'
+```
+
+Recapture the shadow set:
+
+```bash
+./docker/run.sh bash -lc \
+  'CAMERAS="straight_start straight_mid straight_east straight_curve_entry right_curve left_curve" \
+   tools/capture_perception_frames.sh tests/frames_lighting tests/gazebo/lighting_frames.sdf'
 ```
 
 ## Live check
@@ -204,12 +245,19 @@ for curve projection, and added the line fit for a single dash near the target.
 Before those changes the car stopped at 16.4 m on the dashed track. With them it
 completed all three track-version-2 laps with 100% valid estimates.
 
+For shadows I added the local-contrast fallback and measured it on six labeled
+frames. I also prototyped a single-boundary fallback that offset the visible
+line by the known lane width. It reached further into the shadowed curve but
+caused a lane departure in another run, so it is not in the shipped code.
+
 ## Limitations
 
 - The method assumes a flat road and a fixed camera pitch. Body pitch from
   braking or acceleration will move the ground projection.
 - The dashed variant uses 3 m dashes, 0.75 m gaps, and a fixed light wear
-  pattern. Long gaps, heavy wear, shadows, and wet markings are not tested.
+  pattern. Long gaps, heavy wear, and wet markings are not tested.
+- Low-sun shadows pass on the labeled frames but not for a full lap. A shadowed
+  curve can leave only one boundary in view, and the car stops.
 - The fitted width on a curve can be about 0.2 m wider than the true projected
   width. The controller uses the lane center, not this width.
 - The mark threshold is tuned for this scene. A different road material or
