@@ -1,10 +1,10 @@
 # Environment
 
-**Status: CAMERA GATE PASSED IN DOCKER, NOT IN THE PLANNED VM.** The workspace
-builds and Gazebo publishes real camera frames through ROS 2 in the Docker
-environment below. The target Ubuntu 24.04 ARM64 VM has not been tested.
-Milestone 1 may start on the strength of the Docker result, but every later
-result must keep the Docker deviation labelled.
+**Status: DOCKER PASSES THE CAMERA GATE AND RELEASE TARGET. THE LIMA VM
+PRODUCES VALID CAMERA FRAMES BUT IS TOO SLOW FOR THE RELEASE TARGET.** The VM
+builds, passes 50 tests, and renders 640 × 360 frames at 4.5–5.4 Hz. That rate
+is not enough for the 0.3 s stale rule, so all three VM scenarios fail. See
+[VM validation](#vm-validation-lima).
 
 ## Target environment
 
@@ -25,7 +25,10 @@ measured in Docker must be labelled as such and must not be presented as VM
 results.
 
 The Docker environment did render camera frames, so the Milestone 0 gate was
-not blocked. The VM camera check remains an open verification item.
+not blocked. I later created a native Ubuntu 24.04 ARM64 VM with Lima 2.3.0.
+That VM builds, tests, and renders, but its 4.5–5.4 Hz frame rate is not
+usable for the control loop. Docker remains the only environment that meets
+the release target.
 
 ## Installation
 
@@ -97,10 +100,60 @@ Measured on 2026-11-13 in the Docker container:
 The frame shows the white stripe and all three boxes with correct colours and
 shadows. This is a real rendered frame, not a placeholder image.
 
-**Limit:** this is a Docker result on the macOS host. It does not replace the
-VM check required by the plan.
+**Limit:** the Docker rate is not a VM rate. The native VM result is below.
 
-## Observed results
+## VM validation (Lima)
+
+I created a native VM with Lima 2.3.0 using Apple Virtualization (`vz`):
+
+- Ubuntu 24.04.5 LTS arm64
+- 8 vCPU, 12 GiB RAM, 40 GiB disk
+- ROS 2 Jazzy, Gazebo Sim 8.15.0, Python 3.12.3
+- Mesa llvmpipe software rendering, headless only
+
+The public repository was cloned inside the VM. `colcon build --symlink-install`
+finished both packages and all 50 tests passed.
+
+### VM camera check
+
+| Check | VM result |
+|---|---|
+| Gazebo starts headlessly | yes |
+| Camera publishes through ROS 2 | yes |
+| Image dimensions | 640 × 360 |
+| Frame rate | 4.53 Hz wall, 4.80 Hz message timestamps |
+| Rendering backend | OGRE2, Mesa llvmpipe, software |
+| Probe verdict | `valid: true`, but 4.5–5.4 Hz is not a usable control rate |
+
+I do not count this as a passing VM camera gate. A 4-vCPU run gave 5.40 Hz
+wall / 5.77 Hz timestamps. Disabling shadows on the static camera checker
+raised the rate to 13.46 Hz wall / 13.78 Hz timestamps, so rendering is the
+bottleneck. The committed world keeps shadows because the release results use
+that world.
+
+### VM release scenarios
+
+Final run with the committed world, 8 vCPU, and the normal controller:
+
+| Scenario | Lap | Progress | p95 error | Max error | Valid | Stops |
+|---|---:|---:|---:|---:|---:|---:|
+| center | no | 27.304 m | 0.107 m | 0.167 m | 18.0% | 5 |
+| left +0.3 m | no | 28.504 m | 0.161 m | 0.300 m | 16.5% | 4 |
+| right −0.3 m | no | 47.814 m | 0.242 m | 0.300 m | 25.4% | 4 |
+
+The p95 values are over partial runs, not completed laps, so they are not a
+release pass.
+
+**Failure cause:** at 4.5–5.4 Hz, camera intervals occasionally exceed the
+0.3 s stale limit. The controller commands zero and the car stops. At several
+stop positions perception reports `lane_invalid` and does not resume, so the
+lap never completes. This is a rendering-rate and recovery limitation, not a
+control-equation error. The Docker environment at 13.9 Hz completes all three
+laps.
+
+The raw VM results are in [`results-vm/`](../results-vm/).
+
+## Docker observed results
 
 | Item | Observed value |
 |---|---|
@@ -153,8 +206,8 @@ expected fields.
   reserved mask bits. It did not affect the frames.
 - The Gazebo GUI is not available in this Docker setup. Only headless operation
   is supported here.
-- The target VM may use hardware rendering and produce different rates. Do not
-  copy these numbers into VM results.
+- The native VM used Mesa llvmpipe too and was slower than Docker. Its scenario
+  runs fail the release target. Do not copy Docker rates into VM results.
 
 ## Commands run
 
@@ -164,6 +217,9 @@ docker build --progress=plain -t auto-drive-sim:jazzy-harmonic -f docker/Dockerf
 ./docker/run.sh bash -lc 'colcon build --symlink-install'
 ./docker/run.sh bash -lc 'tools/run_camera_check.sh'
 ./docker/run.sh bash -lc 'LIBGL_ALWAYS_SOFTWARE=1 eglinfo'
+limactl start --name=ros2-jazzy-vm --cpus 8 --memory 12 --disk 40 --vm-type vz template:ubuntu-24.04
+limactl shell ros2-jazzy-vm -- bash -lc 'cd ~/ros2-lane-keeping && tools/run_camera_check.sh'
+limactl shell ros2-jazzy-vm -- bash -lc 'cd ~/ros2-lane-keeping && tools/run_scenarios.sh'
 ```
 
 `ros2 --version` is not accepted by ROS 2 Jazzy; package metadata is used for

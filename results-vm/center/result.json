@@ -1,0 +1,32 @@
+{
+  "scenario": "center",
+  "start_pose": [
+    -10.0,
+    15.0,
+    -0.02
+  ],
+  "start_offset_m": 0.0,
+  "lap_complete": false,
+  "lap_time_s": null,
+  "duration_s": 130.44,
+  "progress_m": 27.304,
+  "centerline_length_m": 134.248,
+  "lateral_error_mean_abs_m": 0.0936,
+  "lateral_error_p95_abs_m": 0.1075,
+  "lateral_error_max_abs_m": 0.1672,
+  "lane_width_m": 3.5,
+  "footprint_crossing": false,
+  "footprint_crossing_samples": 0,
+  "first_footprint_crossing_s": null,
+  "perception_valid_percent": 18.04,
+  "perception_messages": 1319,
+  "stop_events": 5,
+  "stop_times_s": [
+    23.3,
+    25.45,
+    34.002,
+    39.6,
+    41.5
+  ],
+  "samples": 8195
+}

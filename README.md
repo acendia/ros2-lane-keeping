@@ -17,7 +17,7 @@ error stays below 0.35 m.
 | left +0.3 m | yes | 87.88 s | 0.268 m | 0.300 m | no | 100% | 0 |
 | right −0.3 m | yes | 87.87 s | 0.252 m | 0.300 m | no | 100% | 0 |
 
-The target passes in this environment.
+**Docker release target: PASS.**
 
 - Tested in Docker on macOS arm64.
 - Ubuntu 24.04.5 arm64.
@@ -27,11 +27,16 @@ The target passes in this environment.
 - Demo and evaluation run: commit `89de4eb`, 1.5 m/s, lookahead gain 1.2, 90°
   camera.
 
-The planned Ubuntu VM is not tested. Do not read the Docker numbers as VM
-numbers.
+A native Ubuntu 24.04 ARM64 VM was also tested with Lima and Apple
+Virtualization. It builds, passes 50 tests, and produces valid camera frames, but
+runs at 4.5–5.4 Hz under Mesa llvmpipe, which is too slow for the 0.3 s stale rule. All three scenarios fail there because
+camera gaps trigger the 0.3 s stale stop and perception does not always recover.
+The VM result is a documented failure, not a pass. See
+[`docs/environment.md`](docs/environment.md) and
+[`results-vm/summary.md`](results-vm/summary.md).
 
-Raw results are in [`results/`](results/). The method and tuning record are in
-[`docs/evaluation.md`](docs/evaluation.md).
+Raw Docker results are in [`results/`](results/). The method and tuning record
+are in [`docs/evaluation.md`](docs/evaluation.md).
 
 ## How it works
 
@@ -151,7 +156,8 @@ ros2-lane-keeping/
 │   └── auto_drive_sim_interfaces/      # LaneEstimate.msg
 ├── tools/                              # track, capture, drive, evaluation tools
 ├── tests/                              # unit tests and saved camera frames
-├── results/                            # scenario JSON, CSV, Markdown summary
+├── results/                            # Docker scenario JSON, CSV, summary
+├── results-vm/                         # native VM result (failed target)
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
 └── docs/                               # setup, architecture, track, car,
                                         # perception, control, evaluation
@@ -162,7 +168,8 @@ rename. The project name is ros2-lane-keeping.
 
 ## Known limitations
 
-- Results are from Docker on macOS, not the planned Ubuntu VM.
+- The passing results are from Docker on macOS. The native VM was tested
+  and failed the scenario target under software rendering.
 - The track is a clean, flat, one-lane oval with continuous white markings.
   Dashed, worn, shadowed, or wet markings are not handled.
 - Speed is constant at 1.5 m/s. There is no curve speed planning.

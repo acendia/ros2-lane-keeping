@@ -1,7 +1,9 @@
 # Setup
 
-The tested environment is Docker on macOS arm64, not the planned Ubuntu VM.
-The same Ubuntu 24.04 and ROS 2 Jazzy commands apply on a native ARM64 VM.
+The passing release environment is Docker on macOS arm64. A native Ubuntu
+24.04 ARM64 VM was also built with Lima; it passes the build, tests, and camera
+gate, but fails the full scenarios under software rendering. See
+[`environment.md`](environment.md). The same Ubuntu packages apply in both.
 
 ## Docker
 
@@ -64,6 +66,32 @@ For headless rendering without a GPU, install Mesa:
 ```bash
 sudo apt install -y libgl1-mesa-dri libegl1 libgles2 libglu1-mesa mesa-utils
 ```
+
+## Lima VM
+
+I tested a native VM with Lima 2.3.0 and Apple Virtualization:
+
+```bash
+limactl start --name=ros2-jazzy-vm --cpus 8 --memory 12 --disk 40 \
+  --vm-type vz template:ubuntu-24.04
+limactl shell ros2-jazzy-vm
+```
+
+Inside that VM, run the Ubuntu package commands above, clone the repository,
+build, and run the camera check:
+
+```bash
+git clone https://github.com/acendia/ros2-lane-keeping.git
+cd ros2-lane-keeping
+colcon build --symlink-install
+source install/setup.bash
+python3 -m pytest -q tests
+tools/run_camera_check.sh
+```
+
+Headless only; there is no Gazebo GUI. The VM produces valid camera frames but runs at
+only 4.5–5.4 Hz, so the scenario run fails the release target because llvmpipe cannot sustain the
+camera rate. `results-vm/` contains the measured failure.
 
 ## Build
 

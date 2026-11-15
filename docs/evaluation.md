@@ -65,7 +65,7 @@ bridge used by perception and control does not include it.
 The evaluator uses simulated time. A slower renderer changes wall-clock
 duration, not the metric timeline.
 
-## Results
+## Docker results
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
@@ -73,7 +73,7 @@ duration, not the metric timeline.
 | left +0.3 m | yes | 87.88 | 0.168 | 0.268 | 0.300 | no | 100.0 | 0 |
 | right −0.3 m | yes | 87.87 | 0.168 | 0.252 | 0.300 | no | 100.0 | 0 |
 
-Release target: **PASS**.
+**Docker release target: PASS.**
 
 - All three laps completed.
 - No footprint corner crossed either lane edge.
@@ -100,6 +100,31 @@ A shorter lookahead made the inside offset worse. Increasing the gain to 1.2
 gave the car a longer effective lookahead and reduced the curve error without
 causing oscillation.
 
+## VM validation
+
+I also ran the same three scenarios on a native Ubuntu 24.04 ARM64 VM created
+with Lima 2.3.0 (Apple Virtualization), 8 vCPU, 12 GiB RAM, and Mesa llvmpipe.
+The VM built both packages and passed all 50 tests. It produced valid 640 ×
+360 camera frames, but at only 4.53 Hz wall / 4.80 Hz timestamps. That is below
+the rate the 0.3 s stale rule needs.
+
+| Scenario | Lap | Progress | p95 error | Max error | Valid | Stops |
+|---|---:|---:|---:|---:|---:|---:|
+| center | no | 27.304 m | 0.107 m | 0.167 m | 18.0% | 5 |
+| left +0.3 m | no | 28.504 m | 0.161 m | 0.300 m | 16.5% | 4 |
+| right −0.3 m | no | 47.814 m | 0.242 m | 0.300 m | 25.4% | 4 |
+
+**VM release target: FAIL.**
+
+The camera intervals occasionally exceed the 0.3 s stale limit at 4.5–5.4 Hz.
+The controller stops, and at several stop positions perception reports
+`lane_invalid` and does not resume. The lap never completes. Disabling shadows
+raised the static camera rate to 13.46 Hz, so software rendering is the
+bottleneck. These are partial-run p95 values, not completed-lap values. Raw
+results are in [`results-vm/`](../results-vm/).
+
+Docker at 13.9 Hz remains the only environment that completes all three laps.
+
 ## Run it
 
 ```bash
@@ -119,7 +144,7 @@ results to `results/`.
 
 ## Limitations
 
-- These results are from Docker on macOS, not the planned Ubuntu VM.
+- The passing results are from Docker on macOS. The native VM was tested and failed (see above).
 - The track is a clean, flat, one-lane oval with continuous white markings.
 - There is no traffic, weather, occlusion, or dashed marking.
 - The lateral error is measured to the nearest centerline sample; the footprint

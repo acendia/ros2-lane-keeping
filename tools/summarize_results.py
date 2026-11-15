@@ -1,19 +1,28 @@
 #!/usr/bin/env python3
 """Summarize scenario result JSON files into a Markdown table."""
 
+import argparse
 import json
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 RESULTS_DIR = REPO_ROOT / 'results'
+DEFAULT_ENVIRONMENT = (
+    'Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, Gazebo Sim 8.15.0.')
 SCENARIOS = ['center', 'left', 'right']
 
 
 def main() -> int:
-    """Read result.json files and write results/summary.md."""
+    """Read result.json files and write a summary table."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--results-dir', type=Path, default=RESULTS_DIR)
+    parser.add_argument('--environment', default=DEFAULT_ENVIRONMENT)
+    args = parser.parse_args()
+    results_dir = args.results_dir
+
     rows = []
     for scenario in SCENARIOS:
-        path = RESULTS_DIR / scenario / 'result.json'
+        path = results_dir / scenario / 'result.json'
         if not path.is_file():
             rows.append((scenario, None))
             continue
@@ -22,8 +31,7 @@ def main() -> int:
     lines = [
         '# Scenario results',
         '',
-        'Environment: Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, '
-        'Gazebo Sim 8.15.0.',
+        f'Environment: {args.environment}',
         '',
         '| Scenario | Lap | Lap time (s) | p95 error (m) | Max error (m) | '
         'Boundary crossing | Perception valid (%) | Stop events |',
@@ -70,8 +78,8 @@ def main() -> int:
         f'- p95 absolute lateral error below 0.35 m: {p95_text}',
         '',
     ])
-    RESULTS_DIR.mkdir(parents=True, exist_ok=True)
-    (RESULTS_DIR / 'summary.md').write_text(
+    results_dir.mkdir(parents=True, exist_ok=True)
+    (results_dir / 'summary.md').write_text(
         '\n'.join(lines), encoding='utf-8')
     print('\n'.join(lines))
     return 0 if passed else 1
