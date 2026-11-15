@@ -52,13 +52,21 @@ class PerceptionConfig:
 
     target_distance_m: float = 4.0
     roi_min_forward_m: float = 3.5
-    roi_max_forward_m: float = 12.0
-    roi_half_width_m: float = 5.0
-    min_component_area_px: int = 100
+    roi_max_forward_m: float = 15.0
+    roi_half_width_m: float = 8.0
+    min_component_area_px: int = 8
+    min_component_points: int = 5
     min_boundary_points: int = 50
     min_boundary_span_m: float = 2.5
+    min_linear_span_m: float = 1.0
+    max_target_gap_m: float = 1.6
     min_separation_m: float = 2.8
     max_separation_m: float = 4.5
+    nominal_lane_width_m: float = 3.62
+    pair_x_tolerance_m: float = 1.6
+    pair_min_separation_m: float = 2.0
+    pair_max_separation_m: float = 6.0
+    max_assignment_distance_m: float = 0.8
     max_fit_residual_m: float = 0.25
     max_fit_rms_m: float = 0.15
     max_center_offset_m: float = 2.5
@@ -69,7 +77,7 @@ class PerceptionConfig:
 
 @dataclass(frozen=True)
 class BoundaryFit:
-    """Quadratic fit y(x) for one lane boundary."""
+    """Polynomial fit y(x) for one lane boundary."""
 
     coefficients: np.ndarray
     rms_m: float
@@ -80,6 +88,16 @@ class BoundaryFit:
     def evaluate(self, x_m: float) -> float:
         """Evaluate the boundary lateral position at a forward distance."""
         return float(np.polyval(self.coefficients, x_m))
+
+
+@dataclass(frozen=True)
+class MarkingComponent:
+    """One connected marking piece with its ground points."""
+
+    x_values: np.ndarray
+    y_values: np.ndarray
+    x_center_m: float
+    y_center_m: float
 
 
 @dataclass(frozen=True)
@@ -163,9 +181,9 @@ def threshold_markings(image: np.ndarray,
         (180, config.white_saturation_max, 255))
 
 
-def extract_boundary_points(mask: np.ndarray, ground: GroundPlane,
-                            config: PerceptionConfig) -> tuple:
-    """Find the two largest marking components and split them by side."""
+def _marking_components(mask: np.ndarray, ground: GroundPlane,
+                        config: PerceptionConfig) -> list:
+    """Collect marking pieces that reach the road ROI."""
     count, labels, stats, _ = cv2.connectedComponentsWithStats(mask, 8)
     components = []
     for label in range(1, count):
@@ -179,27 +197,135 @@ def extract_boundary_points(mask: np.ndarray, ground: GroundPlane,
             (np.abs(y_values) <= config.roi_half_width_m))
         x_values = x_values[keep]
         y_values = y_values[keep]
-        if x_values.size >= config.min_boundary_points:
-            components.append((x_values, y_values))
+        if x_values.size < config.min_component_points:
+            continue
+        components.append(MarkingComponent(
+            x_values=x_values,
+            y_values=y_values,
+            x_center_m=float(np.median(x_values)),
+            y_center_m=float(np.median(y_values)),
+        ))
+    return components
 
-    components.sort(key=lambda component: component[0].size, reverse=True)
-    if len(components) < 2:
+
+def _component_pairs(components: list, config: PerceptionConfig) -> list:
+    """Pair dashes that sit at the same forward distance on opposite sides."""
+    pairs = []
+    used = set()
+    for first_index, first in enumerate(components):
+        if first_index in used:
+            continue
+        best_index = None
+        best_score = None
+        for second_index, second in enumerate(components):
+            if second_index == first_index or second_index in used:
+                continue
+            dx = abs(first.x_center_m - second.x_center_m)
+            if dx > config.pair_x_tolerance_m:
+                continue
+            dy = abs(first.y_center_m - second.y_center_m)
+            if not config.pair_min_separation_m <= dy <= \
+                    config.pair_max_separation_m:
+                continue
+            score = dx + abs(dy - config.nominal_lane_width_m)
+            if best_score is None or score < best_score:
+                best_index = second_index
+                best_score = score
+        if best_index is not None:
+            used.add(first_index)
+            used.add(best_index)
+            pairs.append((first_index, best_index))
+    return pairs
+
+
+def _join_points(components: list, config: PerceptionConfig) -> tuple:
+    """Aggregate paired pieces and attach any remaining pieces to one side."""
+    left_x = []
+    left_y = []
+    right_x = []
+    right_y = []
+    paired = set()
+    for first_index, second_index in _component_pairs(components, config):
+        first = components[first_index]
+        second = components[second_index]
+        paired.add(first_index)
+        paired.add(second_index)
+        if first.y_center_m >= second.y_center_m:
+            left, right = first, second
+        else:
+            left, right = second, first
+        left_x.append(left.x_values)
+        left_y.append(left.y_values)
+        right_x.append(right.x_values)
+        right_y.append(right.y_values)
+
+    if not left_x:
         empty = (np.array([]), np.array([]))
         return empty, empty
 
-    first = components[0]
-    second = components[1]
-    if first[1].mean() > second[1].mean():
-        return (first[0], first[1]), (second[0], second[1])
-    return (second[0], second[1]), (first[0], first[1])
+    left_x_array = np.concatenate(left_x)
+    left_y_array = np.concatenate(left_y)
+    right_x_array = np.concatenate(right_x)
+    right_y_array = np.concatenate(right_y)
+    if left_x_array.size < 3 or right_x_array.size < 3:
+        return (left_x_array, left_y_array), (right_x_array, right_y_array)
+
+    left_coefficients = np.polyfit(left_x_array, left_y_array, 2)
+    right_coefficients = np.polyfit(right_x_array, right_y_array, 2)
+
+    for index, component in enumerate(components):
+        if index in paired:
+            continue
+        x_m = component.x_center_m
+        left_y_at_x = float(np.polyval(left_coefficients, x_m))
+        right_y_at_x = float(np.polyval(right_coefficients, x_m))
+        separation = left_y_at_x - right_y_at_x
+        if not config.pair_min_separation_m <= separation <= \
+                config.pair_max_separation_m:
+            continue
+        left_distance = abs(component.y_center_m - left_y_at_x)
+        right_distance = abs(component.y_center_m - right_y_at_x)
+        if min(left_distance, right_distance) > \
+                config.max_assignment_distance_m:
+            continue
+        if left_distance <= right_distance:
+            left_x_array = np.concatenate(
+                [left_x_array, component.x_values])
+            left_y_array = np.concatenate(
+                [left_y_array, component.y_values])
+        else:
+            right_x_array = np.concatenate(
+                [right_x_array, component.x_values])
+            right_y_array = np.concatenate(
+                [right_y_array, component.y_values])
+    return (left_x_array, left_y_array), (right_x_array, right_y_array)
+
+
+def extract_boundary_points(mask: np.ndarray, ground: GroundPlane,
+                            config: PerceptionConfig) -> tuple:
+    """Group marking pieces into left and right boundary point sets."""
+    components = _marking_components(mask, ground, config)
+    return _join_points(components, config)
 
 
 def fit_boundary(x_values: np.ndarray, y_values: np.ndarray,
                  config: PerceptionConfig) -> Optional[BoundaryFit]:
-    """Robustly fit a quadratic boundary and reject weak fits."""
+    """Fit a boundary and reject short or weak point sets.
+
+    Long spans use a quadratic. A single dash near the lookahead target uses
+    a line, because a quadratic is not constrained over a 1.5 m dash.
+    """
     if x_values.size < config.min_boundary_points:
         return None
-    coefficients = np.polyfit(x_values, y_values, 2)
+    span = float(x_values.max() - x_values.min())
+    if span >= config.min_boundary_span_m:
+        degree = 2
+    elif span >= config.min_linear_span_m:
+        degree = 1
+    else:
+        return None
+
+    coefficients = np.polyfit(x_values, y_values, degree)
     inliers = np.ones(x_values.size, dtype=bool)
     for _ in range(3):
         residuals = y_values - np.polyval(coefficients, x_values)
@@ -207,12 +333,20 @@ def fit_boundary(x_values: np.ndarray, y_values: np.ndarray,
         if inliers.sum() < config.min_boundary_points:
             return None
         coefficients = np.polyfit(
-            x_values[inliers], y_values[inliers], 2)
+            x_values[inliers], y_values[inliers], degree)
     residuals = y_values[inliers] - np.polyval(
         coefficients, x_values[inliers])
     rms = float(np.sqrt(np.mean(residuals ** 2)))
     span = float(x_values[inliers].max() - x_values[inliers].min())
-    if rms > config.max_fit_rms_m or span < config.min_boundary_span_m:
+    if degree == 1:
+        if span < config.min_linear_span_m:
+            return None
+        if x_values[inliers].min() > \
+                config.target_distance_m + config.max_target_gap_m:
+            return None
+    elif span < config.min_boundary_span_m:
+        return None
+    if rms > config.max_fit_rms_m:
         return None
     return BoundaryFit(
         coefficients=coefficients,
@@ -276,7 +410,8 @@ def analyze_frame(image: np.ndarray, ground: GroundPlane,
     point_score = min(1.0, min(left.point_count, right.point_count) / 200.0)
     residual_score = max(
         0.0, 1.0 - max(left.rms_m, right.rms_m) / config.max_fit_rms_m)
-    width_score = max(0.0, 1.0 - abs(lane_width - 3.62) / 0.7)
+    width_score = max(
+        0.0, 1.0 - abs(lane_width - config.nominal_lane_width_m) / 0.7)
     confidence = 0.35 * point_score + 0.35 * residual_score + \
         0.30 * width_score
 

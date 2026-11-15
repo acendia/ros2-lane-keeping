@@ -15,9 +15,10 @@ def main() -> int:
     parser.add_argument('--offset', type=float, default=0.0,
                         help='positive offset is left of the centerline')
     parser.add_argument('--output', type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument('--source-world', type=Path, default=SOURCE_WORLD)
     args = parser.parse_args()
 
-    text = SOURCE_WORLD.read_text(encoding='utf-8')
+    text = args.source_world.read_text(encoding='utf-8')
     old_pose = '<pose>-10 15 0.05 0 0 0</pose>'
     if text.count(old_pose) != 1:
         raise SystemExit('could not find the car start pose')

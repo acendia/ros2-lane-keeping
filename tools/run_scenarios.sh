@@ -19,6 +19,18 @@ fi
 target_speed="${TARGET_SPEED:-1.5}"
 lookahead_gain="${LOOKAHEAD_GAIN:-1.2}"
 yaw_alpha="${YAW_ALPHA:-0.35}"
+world_name="${WORLD:-car_world.sdf}"
+results_root="${RESULTS_DIR:-$repo_dir/results}"
+source_world="$repo_dir/install/auto_drive_sim/share/auto_drive_sim/worlds/$world_name"
+if [ ! -f "$source_world" ]; then
+  source_world="$repo_dir/src/auto_drive_sim/worlds/$world_name"
+fi
+if [ ! -f "$source_world" ]; then
+  echo "world not found: $world_name" >&2
+  exit 2
+fi
+environment="${SUMMARY_ENVIRONMENT:-Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, Gazebo Sim 8.15.0.}"
+run_root="${RUN_DIR:-$repo_dir/artifacts/scenarios}"
 
 for name in "${scenarios[@]}"; do
   case "$name" in
@@ -28,11 +40,12 @@ for name in "${scenarios[@]}"; do
     *) echo "unknown scenario: $name" >&2; exit 2 ;;
   esac
 
-  run_dir="$repo_dir/artifacts/scenarios/$name"
-  result_dir="$repo_dir/results/$name"
+  run_dir="$run_root/$name"
+  result_dir="$results_root/$name"
   mkdir -p "$run_dir" "$result_dir"
   python3 "$repo_dir/tools/make_scenario_world.py" \
-    --offset "$offset" --output "$run_dir/world.sdf" >/dev/null
+    --offset "$offset" --output "$run_dir/world.sdf" \
+    --source-world "$source_world" >/dev/null
   start_y="$(python3 -c "print(15.0 + ($offset))")"
 
   echo "=== scenario: $name (offset ${offset} m) ==="
@@ -93,4 +106,5 @@ for name in "${scenarios[@]}"; do
   echo "result: $result_dir/result.json"
 done
 
-python3 "$repo_dir/tools/summarize_results.py"
+python3 "$repo_dir/tools/summarize_results.py" \
+  --results-dir "$results_root" --environment "$environment"

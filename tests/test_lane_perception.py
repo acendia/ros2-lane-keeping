@@ -1,6 +1,7 @@
 """Tests for the pure lane perception pipeline."""
 
 import importlib.util
+import json
 from pathlib import Path
 
 import cv2
@@ -9,6 +10,9 @@ import pytest
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 FRAMES = REPO_ROOT / 'tests/frames'
+MARKINGS_FRAMES = REPO_ROOT / 'tests/frames_markings'
+MARKINGS_LABELS = json.loads(
+    (MARKINGS_FRAMES / 'labels.json').read_text(encoding='utf-8'))
 _SPEC = importlib.util.spec_from_file_location(
     'lane_perception',
     REPO_ROOT / 'src/auto_drive_sim/auto_drive_sim/lane_perception.py')
@@ -34,6 +38,40 @@ def _fit(value: float) -> lane_perception.BoundaryFit:
         x_min_m=4.0,
         x_max_m=12.0,
     )
+
+
+def _markings_frame(name: str) -> np.ndarray:
+    image = cv2.imread(str(MARKINGS_FRAMES / f'{name}.png'))
+    assert image is not None, f'missing markings frame {name}'
+    return image
+
+
+@pytest.mark.parametrize('name', sorted(MARKINGS_LABELS['frames']))
+def test_markings_frame_labels(name):
+    """Dashed and worn frames must match their ground-truth labels."""
+    label = MARKINGS_LABELS['frames'][name]
+    result = lane_perception.analyze_frame(
+        _markings_frame(name), GROUND, CONFIG)
+    assert result.valid == label['valid']
+    assert result.reason == ''
+    assert result.lateral_error_m == pytest.approx(
+        label['lateral_error_m'],
+        abs=MARKINGS_LABELS['lateral_tolerance_m'])
+    assert result.lane_width_m == pytest.approx(
+        label['lane_width_m'],
+        abs=MARKINGS_LABELS['width_tolerance_m'])
+    assert result.confidence > 0.6
+
+
+def test_dashed_frame_groups_multiple_pieces():
+    """A dashed frame must combine pieces from both boundaries."""
+    mask = lane_perception.threshold_markings(
+        _markings_frame('straight_start'), CONFIG)
+    components = lane_perception._marking_components(
+        mask, GROUND, CONFIG)
+    pairs = lane_perception._component_pairs(components, CONFIG)
+    assert len(components) >= 4
+    assert len(pairs) >= 2
 
 
 def test_straight_frame():

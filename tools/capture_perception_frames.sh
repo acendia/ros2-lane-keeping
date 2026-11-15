@@ -7,9 +7,11 @@ set -euo pipefail
 
 repo_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 out_dir="${1:-$repo_dir/tests/frames}"
-log_dir="$repo_dir/artifacts/perception_frames"
-world="$repo_dir/tests/gazebo/perception_frames.sdf"
+world="${2:-$repo_dir/tests/gazebo/perception_frames.sdf}"
+log_dir="$repo_dir/artifacts/$(basename "$out_dir")"
 models_dir="$repo_dir/src/auto_drive_sim/models"
+
+read -r -a cameras <<< "${CAMERAS:-straight right_curve left_curve no_line}"
 
 mkdir -p "$out_dir" "$log_dir"
 
@@ -41,10 +43,15 @@ fi
 
 gz topic -l >"$log_dir/gz_topics.txt"
 
-cameras=(straight right_curve left_curve no_line)
+if [ "$(basename "$world")" = "markings_frames.sdf" ]; then
+  topic_prefix="/markings_frames"
+else
+  topic_prefix="/perception_frames"
+fi
+
 bridge_args=()
 for camera in "${cameras[@]}"; do
-  topic="/perception_frames/$camera/image"
+  topic="$topic_prefix/$camera/image"
   if ! grep -qx "$topic" "$log_dir/gz_topics.txt"; then
     echo "Camera topic $topic not advertised." >&2
     exit 1
@@ -59,7 +66,7 @@ bridge_pid=$!
 sleep 3
 for camera in "${cameras[@]}"; do
   if ! python3 "$repo_dir/tools/camera_probe.py" \
-      --topic "/perception_frames/$camera/image" \
+      --topic "$topic_prefix/$camera/image" \
       --duration 4 \
       --min-frames 5 \
       --output "$out_dir/$camera.png" \

@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import json
 import math
 from pathlib import Path
+import re
 
 import yaml
 
@@ -37,6 +38,14 @@ class TrackConfig:
     marking_color_rgb: tuple
     start_s_m: float
     start_z_m: float
+    model_name: str
+    marking_style: str
+    dash_length_m: float
+    gap_length_m: float
+    worn_every: int
+    worn_gap_m: float
+    worn_width_scale: float
+    worn_color_rgb: tuple
 
 
 @dataclass(frozen=True)
@@ -57,6 +66,15 @@ def _positive(value, name: str) -> float:
     return value
 
 
+@dataclass(frozen=True)
+class MarkingSegment:
+    """One painted stretch along the centerline arc length."""
+
+    start_s_m: float
+    end_s_m: float
+    worn: bool
+
+
 def _color(value, name: str) -> tuple:
     if not isinstance(value, (list, tuple)) or len(value) != 3:
         raise ValueError(f'{name} must be a list of three numbers')
@@ -73,6 +91,21 @@ def load_config(path: Path = DEFAULT_CONFIG) -> TrackConfig:
 
     track = raw['track']
     start = raw['start_pose']
+    markings = raw.get('markings', {})
+    marking_style = str(markings.get('style', 'solid')).strip().lower()
+    if marking_style not in ('solid', 'dashed'):
+        raise ValueError('markings.style must be solid or dashed')
+
+    model_name = str(raw.get('model_name', 'road')).strip()
+    if not re.fullmatch(r'[a-z][a-z0-9_]*', model_name):
+        raise ValueError(
+            'model_name must start with a lowercase letter and use only '
+            'lowercase letters, digits, and underscores')
+
+    worn_every = int(markings.get('worn_every', 0))
+    if worn_every < 0:
+        raise ValueError('markings.worn_every must not be negative')
+
     config = TrackConfig(
         track_version=int(raw['track_version']),
         straight_length_m=_positive(
@@ -91,6 +124,16 @@ def load_config(path: Path = DEFAULT_CONFIG) -> TrackConfig:
             track['marking_color_rgb'], 'marking_color_rgb'),
         start_s_m=float(start['s_m']),
         start_z_m=float(start['z_m']),
+        model_name=model_name,
+        marking_style=marking_style,
+        dash_length_m=float(markings.get('dash_length_m', 0.0)),
+        gap_length_m=float(markings.get('gap_length_m', 0.0)),
+        worn_every=worn_every,
+        worn_gap_m=float(markings.get('worn_gap_m', 0.0)),
+        worn_width_scale=float(markings.get('worn_width_scale', 1.0)),
+        worn_color_rgb=_color(
+            markings.get('worn_color_rgb', track['marking_color_rgb']),
+            'worn_color_rgb'),
     )
 
     if config.marking_width_m >= config.lane_width_m:
@@ -99,6 +142,14 @@ def load_config(path: Path = DEFAULT_CONFIG) -> TrackConfig:
         raise ValueError('shoulder_width_m must not be negative')
     if config.marking_height_m <= config.asphalt_height_m:
         raise ValueError('marking_height_m must exceed asphalt_height_m')
+    if config.marking_style == 'dashed':
+        if config.dash_length_m <= 0.0 or config.gap_length_m <= 0.0:
+            raise ValueError(
+                'dashed markings need a positive dash_length_m and gap_length_m')
+        if config.worn_gap_m < 0.0:
+            raise ValueError('worn_gap_m must not be negative')
+        if not 0.3 <= config.worn_width_scale <= 1.0:
+            raise ValueError('worn_width_scale must be in [0.3, 1.0]')
 
     length = track_length(config)
     if not 0.0 <= config.start_s_m < length:
@@ -205,6 +256,62 @@ def ribbon_faces(sample_count: int) -> list:
     return faces
 
 
+def marking_segments(config: TrackConfig) -> list:
+    """Return the painted stretches in arc length order."""
+    length = track_length(config)
+    if config.marking_style == 'solid':
+        return [MarkingSegment(0.0, length, False)]
+
+    segments = []
+    period = config.dash_length_m + config.gap_length_m
+    start_s = 0.0
+    index = 0
+    while start_s < length - 1e-9:
+        end_s = min(start_s + config.dash_length_m, length)
+        worn = (
+            config.worn_every > 0 and
+            index % config.worn_every == config.worn_every - 1)
+        if worn and config.worn_gap_m > 0.0 and \
+                end_s - start_s > 2.0 * config.worn_gap_m + 0.2:
+            middle = 0.5 * (start_s + end_s)
+            half_gap = 0.5 * config.worn_gap_m
+            segments.append(
+                MarkingSegment(start_s, middle - half_gap, True))
+            segments.append(
+                MarkingSegment(middle + half_gap, end_s, True))
+        else:
+            segments.append(MarkingSegment(start_s, end_s, worn))
+        start_s += period
+        index += 1
+    return segments
+
+
+def segment_samples(config: TrackConfig, samples: list,
+                    segment: MarkingSegment) -> list:
+    """Return the centerline samples inside one marking segment."""
+    length = track_length(config)
+    unrolled = samples + [
+        Sample(sample.s_m + length, sample.x_m, sample.y_m,
+               sample.yaw_rad, sample.curvature_1_per_m)
+        for sample in samples]
+    return [
+        sample for sample in unrolled
+        if segment.start_s_m - 1e-6 <= sample.s_m <= segment.end_s_m + 1e-6]
+
+
+def segment_faces(sample_count: int) -> list:
+    """Triangulate an open ribbon whose vertices are left/right pairs."""
+    faces = []
+    for index in range(sample_count - 1):
+        left = 2 * index + 1
+        right = 2 * index + 2
+        next_left = 2 * index + 3
+        next_right = 2 * index + 4
+        faces.append((left, right, next_right))
+        faces.append((left, next_right, next_left))
+    return faces
+
+
 def _number(value: float) -> str:
     if abs(value) < 0.5e-6:
         value = 0.0
@@ -230,6 +337,18 @@ def _write_mtl(path: Path, config: TrackConfig) -> None:
         'd 1.000000\n'
         'illum 1\n'
     )
+    if config.worn_every > 0:
+        worn = ' '.join(
+            _number(channel) for channel in config.worn_color_rgb)
+        content += (
+            '\n'
+            'newmtl worn_lane_marking\n'
+            'Ka 0.600000 0.600000 0.600000\n'
+            f'Kd {worn}\n'
+            'Ks 0.000000 0.000000 0.000000\n'
+            'd 1.000000\n'
+            'illum 1\n'
+        )
     path.write_text(content, encoding='utf-8', newline='\n')
 
 
@@ -249,6 +368,27 @@ def _write_obj(path: Path, name: str, vertices: list, faces: list,
     path.write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
 
 
+def _write_obj_groups(path: Path, name: str, groups: list) -> None:
+    """Write marking pieces with one material per piece."""
+    lines = [
+        '# Generated by tools/generate_track.py. Do not edit by hand.',
+        'mtllib road.mtl',
+        'vn 0.000000 0.000000 1.000000',
+    ]
+    offset = 0
+    for group_index, (vertices, faces, material) in enumerate(groups):
+        lines.append(f'o {name}_{group_index:03d}')
+        for x_m, y_m, z_m in vertices:
+            lines.append(f'v {_number(x_m)} {_number(y_m)} {_number(z_m)}')
+        lines.append(f'usemtl {material}')
+        for first, second, third in faces:
+            lines.append(
+                f'f {first + offset}//1 {second + offset}//1 '
+                f'{third + offset}//1')
+        offset += len(vertices)
+    path.write_text('\n'.join(lines) + '\n', encoding='utf-8', newline='\n')
+
+
 def _write_centerline(path: Path, samples: list) -> None:
     with path.open('w', encoding='utf-8', newline='') as stream:
         writer = csv.writer(stream, lineterminator='\n')
@@ -263,17 +403,17 @@ def _write_centerline(path: Path, samples: list) -> None:
             ])
 
 
-def _write_model_sdf(path: Path) -> None:
-    content = """<?xml version="1.0" ?>
+def _write_model_sdf(path: Path, model_name: str) -> None:
+    content = f"""<?xml version="1.0" ?>
 <!-- Generated by tools/generate_track.py. Do not edit by hand. -->
 <sdf version="1.9">
-  <model name="road">
+  <model name="{model_name}">
     <static>true</static>
     <link name="road_link">
       <visual name="asphalt">
         <geometry>
           <mesh>
-            <uri>model://road/meshes/asphalt.obj</uri>
+            <uri>model://{model_name}/meshes/asphalt.obj</uri>
           </mesh>
         </geometry>
         <cast_shadows>false</cast_shadows>
@@ -281,7 +421,7 @@ def _write_model_sdf(path: Path) -> None:
       <visual name="left_boundary">
         <geometry>
           <mesh>
-            <uri>model://road/meshes/left_boundary.obj</uri>
+            <uri>model://{model_name}/meshes/left_boundary.obj</uri>
           </mesh>
         </geometry>
         <cast_shadows>false</cast_shadows>
@@ -289,7 +429,7 @@ def _write_model_sdf(path: Path) -> None:
       <visual name="right_boundary">
         <geometry>
           <mesh>
-            <uri>model://road/meshes/right_boundary.obj</uri>
+            <uri>model://{model_name}/meshes/right_boundary.obj</uri>
           </mesh>
         </geometry>
         <cast_shadows>false</cast_shadows>
@@ -301,17 +441,24 @@ def _write_model_sdf(path: Path) -> None:
     path.write_text(content, encoding='utf-8', newline='\n')
 
 
-def _write_model_config(path: Path) -> None:
-    content = """<?xml version="1.0"?>
+def _write_model_config(path: Path, config: TrackConfig) -> None:
+    description = 'Original oval lane generated by tools/generate_track.py.'
+    name = 'Auto Drive Sim Road'
+    if config.marking_style == 'dashed':
+        description = (
+            'Original oval lane with dashed and worn markings generated by '
+            'tools/generate_track.py.')
+        name = 'Auto Drive Sim Road Markings'
+    content = f"""<?xml version="1.0"?>
 <model>
-  <name>Auto Drive Sim Road</name>
+  <name>{name}</name>
   <version>1.0</version>
   <sdf version="1.9">model.sdf</sdf>
   <author>
     <name>Evangelos Kostakis</name>
     <email>evangelos.kostakis@example.com</email>
   </author>
-  <description>Original oval lane generated by tools/generate_track.py.</description>
+  <description>{description}</description>
 </model>
 """
     path.write_text(content, encoding='utf-8', newline='\n')
@@ -330,22 +477,54 @@ def generate_assets(config: TrackConfig, output_dir: Path) -> dict:
 
     asphalt_vertices = ribbon_vertices(
         samples, 0.0, asphalt_half, config.asphalt_height_m)
-    left_vertices = ribbon_vertices(
-        samples, left_center, marking_half, config.marking_height_m)
-    right_vertices = ribbon_vertices(
-        samples, -left_center, marking_half, config.marking_height_m)
     faces = ribbon_faces(sample_count)
 
     _write_mtl(meshes_dir / 'road.mtl', config)
     _write_obj(meshes_dir / 'asphalt.obj', 'asphalt',
                asphalt_vertices, faces, 'asphalt')
-    _write_obj(meshes_dir / 'left_boundary.obj', 'left_boundary',
-               left_vertices, faces, 'lane_marking')
-    _write_obj(meshes_dir / 'right_boundary.obj', 'right_boundary',
-               right_vertices, faces, 'lane_marking')
+
+    if config.marking_style == 'solid':
+        left_vertices = ribbon_vertices(
+            samples, left_center, marking_half, config.marking_height_m)
+        right_vertices = ribbon_vertices(
+            samples, -left_center, marking_half, config.marking_height_m)
+        _write_obj(meshes_dir / 'left_boundary.obj', 'left_boundary',
+                   left_vertices, faces, 'lane_marking')
+        _write_obj(meshes_dir / 'right_boundary.obj', 'right_boundary',
+                   right_vertices, faces, 'lane_marking')
+    else:
+        left_groups = []
+        right_groups = []
+        for segment in marking_segments(config):
+            segment_points = segment_samples(config, samples, segment)
+            if len(segment_points) < 2:
+                continue
+            half_width = marking_half
+            material = 'lane_marking'
+            if segment.worn and config.worn_every > 0:
+                half_width *= config.worn_width_scale
+                material = 'worn_lane_marking'
+            segment_faces_list = segment_faces(len(segment_points))
+            left_groups.append((
+                ribbon_vertices(segment_points, left_center, half_width,
+                                config.marking_height_m),
+                segment_faces_list,
+                material,
+            ))
+            right_groups.append((
+                ribbon_vertices(segment_points, -left_center, half_width,
+                                config.marking_height_m),
+                segment_faces_list,
+                material,
+            ))
+        _write_obj_groups(meshes_dir / 'left_boundary.obj', 'left_boundary',
+                          left_groups)
+        _write_obj_groups(meshes_dir / 'right_boundary.obj', 'right_boundary',
+                          right_groups)
+
     _write_centerline(output_dir / 'centerline.csv', samples)
-    _write_model_sdf(output_dir / 'model.sdf')
-    _write_model_config(output_dir / 'model.config')
+    _write_model_sdf(output_dir / 'model.sdf', config.model_name)
+    _write_model_config(output_dir / 'model.config', config)
 
     start = pose_at_s(config, samples, config.start_s_m)
     summary = {
@@ -362,6 +541,16 @@ def generate_assets(config: TrackConfig, output_dir: Path) -> dict:
             'yaw_rad': round(start.yaw_rad, 6),
         },
     }
+    if config.marking_style == 'dashed':
+        summary['markings'] = {
+            'style': config.marking_style,
+            'dash_length_m': config.dash_length_m,
+            'gap_length_m': config.gap_length_m,
+            'worn_every': config.worn_every,
+            'worn_gap_m': config.worn_gap_m,
+            'worn_width_scale': config.worn_width_scale,
+            'segments_per_side': len(marking_segments(config)),
+        }
     (output_dir / 'track_meta.json').write_text(
         json.dumps(summary, indent=2) + '\n', encoding='utf-8', newline='\n')
     return summary

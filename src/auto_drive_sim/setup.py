@@ -21,6 +21,12 @@ setup(
          [path for path in glob('models/road/*') if os.path.isfile(path)]),
         (os.path.join('share', package_name, 'models', 'road', 'meshes'),
          glob('models/road/meshes/*')),
+        (os.path.join('share', package_name, 'models', 'road_markings'),
+         [path for path in glob('models/road_markings/*')
+          if os.path.isfile(path)]),
+        (os.path.join('share', package_name, 'models', 'road_markings',
+                      'meshes'),
+         glob('models/road_markings/meshes/*')),
         (os.path.join('share', package_name, 'models', 'car'),
          [path for path in glob('models/car/*') if os.path.isfile(path)]),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
