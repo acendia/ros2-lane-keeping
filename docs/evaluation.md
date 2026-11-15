@@ -100,6 +100,28 @@ A shorter lookahead made the inside offset worse. Increasing the gain to 1.2
 gave the car a longer effective lookahead and reduced the curve error without
 causing oscillation.
 
+## Speed planning
+
+The controller now limits speed from the lookahead curvature:
+
+```text
+v_curve = sqrt(a_lat / |κ|)
+```
+
+With `a_lat = 0.15 m/s²`, the 15 m oval curves cap the speed at 1.5 m/s. The
+1.5 m/s release target is therefore unchanged. I also ran the solid track with a
+2.0 m/s target, so the straights run at 2.0 m/s and the curves at about
+1.5 m/s.
+
+| Profile | Center lap | Left lap | Right lap | p95 center / left / right | Stops |
+|---|---:|---:|---:|---:|---:|
+| 1.5 m/s release | 87.88 s | 87.89 s | 87.87 s | 0.231 / 0.262 / 0.256 m | 0 / 0 / 0 |
+| 2.0 m/s planned | 81.00 s | 84.44 s | 82.66 s | 0.231 / 0.300 / 0.281 m | 0 / 4 / 1 |
+
+**2.0 m/s speed planning: PASS.** The offset runs are 4–8% faster. Raw results
+are in [`results-fast/`](../results-fast/). The 2.0 m/s profile is validated on
+the solid track only.
+
 ## Dashed and worn track
 
 Track version 2 keeps the same oval, start poses, controller, and evaluator. It
@@ -206,6 +228,15 @@ Run the low-sun shadow check:
 ./docker/run.sh bash -lc 'WORLD=car_world_lighting.sdf \
   RESULTS_DIR=results-lighting \
   RUN_DIR=artifacts/scenarios-lighting \
+  tools/run_scenarios.sh'
+```
+
+Run the 2.0 m/s speed-planning profile:
+
+```bash
+./docker/run.sh bash -lc 'TARGET_SPEED=2.0 \
+  RESULTS_DIR=results-fast \
+  RUN_DIR=artifacts/scenarios-fast \
   tools/run_scenarios.sh'
 ```
 

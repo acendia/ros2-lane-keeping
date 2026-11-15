@@ -55,9 +55,11 @@ The controller uses pure pursuit:
 ω = v · κ
 ```
 
-The speed ramps from zero at 0.6 m/s² to 1.5 m/s. Curvature is limited to
-0.15 1/m, yaw rate to 0.6 rad/s, and yaw commands pass through a first-order
-smoother. The controller publishes zero speed when the lane estimate is
+The speed ramps from zero at 0.6 m/s² to the target. A lateral-acceleration
+limit slows the car in curves; at the 1.5 m/s release target it holds the 15 m
+curves at 1.5 m/s, while the optional 2.0 m/s profile slows to about 1.5 m/s in
+the curves. Curvature is limited to 0.15 1/m, yaw rate to 0.6 rad/s, and yaw
+commands pass through a first-order smoother. The controller publishes zero speed when the lane estimate is
 invalid, missing, or older than 0.3 s, or when odometry is stale.
 
 The full parameter table and stop behavior are in [`control.md`](control.md).

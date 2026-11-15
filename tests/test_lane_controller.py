@@ -40,6 +40,48 @@ def _ramp(follower, seconds=2.0, target=(5.4, 0.0)):
     return command
 
 
+FAST_CONFIG = lane_controller.ControllerConfig(
+    target_speed_mps=2.0,
+    max_acceleration_mps2=1.0,
+    max_deceleration_mps2=1.0,
+    max_lateral_acceleration_mps2=0.15,
+    min_curve_speed_mps=0.6,
+    max_curvature_1pm=0.2,
+    lookahead_gain=1.0,
+    yaw_smoothing_alpha=1.0,
+)
+
+
+def test_speed_limit_straight():
+    """A straight must allow the full target speed."""
+    assert lane_controller.speed_limit_for_curvature(
+        0.0, FAST_CONFIG) == 2.0
+
+
+def test_speed_limit_curve():
+    """The 15 m radius must cap speed at 1.5 m/s."""
+    assert lane_controller.speed_limit_for_curvature(
+        1.0 / 15.0, FAST_CONFIG) == pytest.approx(1.5)
+
+
+def test_speed_limit_floor():
+    """A very sharp curve must use the minimum speed floor."""
+    assert lane_controller.speed_limit_for_curvature(
+        10.0, FAST_CONFIG) == pytest.approx(0.6)
+
+
+def test_curve_deceleration():
+    """Speed must decelerate at the configured rate into a curve."""
+    follower = lane_controller.LaneFollower(FAST_CONFIG)
+    _ramp(follower, seconds=2.0, target=(5.4, 0.0))
+    first = _update(follower, 2.1, target=(5.4, 1.0))
+    for step in range(2, 8):
+        later = _update(follower, 2.1 + (step - 1) * 0.1,
+                        target=(5.4, 1.0))
+    assert first.speed_mps == pytest.approx(1.9)
+    assert later.speed_mps == pytest.approx(1.5, abs=0.01)
+
+
 def test_curvature_straight():
     """A centered lookahead point must give zero curvature."""
     assert lane_controller.curvature_for_point(5.4, 0.0, 0.2) == 0.0

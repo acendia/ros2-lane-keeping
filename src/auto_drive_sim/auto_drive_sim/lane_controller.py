@@ -17,6 +17,9 @@ class ControllerConfig:
 
     target_speed_mps: float = 1.5
     max_acceleration_mps2: float = 0.6
+    max_deceleration_mps2: float = 1.0
+    max_lateral_acceleration_mps2: float = 0.15
+    min_curve_speed_mps: float = 0.6
     max_curvature_1pm: float = 0.15
     max_yaw_rate_radps: float = 0.6
     lookahead_gain: float = 1.2
@@ -31,6 +34,13 @@ class ControllerConfig:
             raise ValueError('target_speed_mps must be positive')
         if self.max_acceleration_mps2 <= 0.0:
             raise ValueError('max_acceleration_mps2 must be positive')
+        if self.max_deceleration_mps2 <= 0.0:
+            raise ValueError('max_deceleration_mps2 must be positive')
+        if self.max_lateral_acceleration_mps2 <= 0.0:
+            raise ValueError('max_lateral_acceleration_mps2 must be positive')
+        if not 0.0 < self.min_curve_speed_mps <= self.target_speed_mps:
+            raise ValueError(
+                'min_curve_speed_mps must be in (0, target_speed_mps]')
         if self.max_curvature_1pm <= 0.0:
             raise ValueError('max_curvature_1pm must be positive')
         if self.max_yaw_rate_radps <= 0.0:
@@ -61,6 +71,18 @@ def curvature_for_point(x_m: float, y_m: float,
     curvature = 2.0 * y_m / distance_sq
     return max(-max_curvature_1pm,
                min(max_curvature_1pm, curvature))
+
+
+def speed_limit_for_curvature(curvature: float,
+                              config: ControllerConfig) -> float:
+    """Return the speed cap for a curvature from lateral acceleration."""
+    if abs(curvature) < 1e-9:
+        return config.target_speed_mps
+    limit = math.sqrt(
+        config.max_lateral_acceleration_mps2 / abs(curvature))
+    return min(
+        config.target_speed_mps,
+        max(config.min_curve_speed_mps, limit))
 
 
 class LaneFollower:
@@ -100,9 +122,17 @@ class LaneFollower:
             self.yaw_rate_radps = 0.0
             return ControllerCommand(0.0, 0.0, 'bad_lookahead')
 
-        self.speed_mps = min(
-            self.config.target_speed_mps,
-            self.speed_mps + self.config.max_acceleration_mps2 * dt)
+        speed_limit = speed_limit_for_curvature(curvature, self.config)
+        if self.speed_mps < speed_limit:
+            self.speed_mps = min(
+                speed_limit,
+                self.speed_mps +
+                self.config.max_acceleration_mps2 * dt)
+        else:
+            self.speed_mps = max(
+                speed_limit,
+                self.speed_mps -
+                self.config.max_deceleration_mps2 * dt)
         target_yaw = self.speed_mps * curvature
         target_yaw = max(-self.config.max_yaw_rate_radps,
                          min(self.config.max_yaw_rate_radps, target_yaw))
@@ -138,6 +168,9 @@ class LaneController(Node):
         super().__init__('lane_controller')
         self.declare_parameter('target_speed_mps', 1.5)
         self.declare_parameter('max_acceleration_mps2', 0.6)
+        self.declare_parameter('max_deceleration_mps2', 1.0)
+        self.declare_parameter('max_lateral_acceleration_mps2', 0.15)
+        self.declare_parameter('min_curve_speed_mps', 0.6)
         self.declare_parameter('max_curvature_1pm', 0.15)
         self.declare_parameter('max_yaw_rate_radps', 0.6)
         self.declare_parameter('lookahead_gain', 1.2)
@@ -151,6 +184,12 @@ class LaneController(Node):
                 'target_speed_mps').value,
             max_acceleration_mps2=self.get_parameter(
                 'max_acceleration_mps2').value,
+            max_deceleration_mps2=self.get_parameter(
+                'max_deceleration_mps2').value,
+            max_lateral_acceleration_mps2=self.get_parameter(
+                'max_lateral_acceleration_mps2').value,
+            min_curve_speed_mps=self.get_parameter(
+                'min_curve_speed_mps').value,
             max_curvature_1pm=self.get_parameter(
                 'max_curvature_1pm').value,
             max_yaw_rate_radps=self.get_parameter(

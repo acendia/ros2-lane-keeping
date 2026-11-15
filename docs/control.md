@@ -32,14 +32,39 @@ the default is `1.0`.
 
 ## Speed and smoothing
 
-- Target speed: 1.5 m/s.
+- Target speed: 1.5 m/s in the release run.
 - Acceleration ramp: 0.6 m/s² from standstill.
+- Deceleration ramp: 1.0 m/s².
+- Lateral acceleration limit: 0.15 m/s².
+- Minimum curve speed: 0.6 m/s.
 - Yaw-rate limit: 0.6 rad/s.
 - Curvature limit: 0.15 1/m.
 - Yaw smoothing: first-order low pass with alpha 0.35 at 20 Hz.
 
-The speed does not jump to 1.5 m/s. It ramps from zero and resets to zero after
-a stop, so recovery also ramps.
+The speed does not jump to the target. It ramps from zero and resets to zero
+after a stop, so recovery also ramps.
+
+## Curve speed planning
+
+The curvature from the lookahead point sets a speed limit:
+
+```text
+v_curve = sqrt(a_lat / |κ|)
+v_limit = min(v_target, max(v_min, v_curve))
+```
+
+The speed moves toward `v_limit`:
+
+```text
+v < v_limit:  v = min(v_limit, v + a_accel · dt)
+v ≥ v_limit:  v = max(v_limit, v − a_decel · dt)
+```
+
+On the 15 m oval curves, `v_curve` is 1.5 m/s. At the release target of
+1.5 m/s, the limiter does not change the release results. At an optional
+2.0 m/s target, the car runs 2.0 m/s on the straights and about 1.5 m/s in the
+curves. That profile completed all three solid-track scenarios at 81.00 s,
+84.44 s, and 82.66 s.
 
 ## Stop conditions
 
@@ -52,12 +77,12 @@ The controller publishes zero speed and zero yaw when:
 | `stale_lane_estimate` | Estimate is older than 0.3 s |
 | `no_odometry` | No odometry has arrived |
 | `stale_odometry` | Odometry is older than 0.3 s |
+| `bad_lookahead` | Target is behind or non-finite |
 
 Perception republishes the last valid estimate for up to 0.25 s on a brief
 invalid frame. The message keeps its original header stamp, so this controller
 still stops once the estimate is older than 0.3 s. The evaluator counts only
 fresh valid estimates.
-| `bad_lookahead` | Target is behind or non-finite |
 
 The Ackermann plugin has its own acceleration limit, so the physical car takes
 a moment to stop after the command reaches zero. In the stop test the measured
@@ -69,6 +94,9 @@ speed went from 1.5 m/s to 0.0 m/s.
 |---|---:|
 | `target_speed_mps` | 1.5 |
 | `max_acceleration_mps2` | 0.6 |
+| `max_deceleration_mps2` | 1.0 |
+| `max_lateral_acceleration_mps2` | 0.15 |
+| `min_curve_speed_mps` | 0.6 |
 | `max_curvature_1pm` | 0.15 |
 | `max_yaw_rate_radps` | 0.6 |
 | `lookahead_gain` | 1.2 |
@@ -115,7 +143,7 @@ The controller tests cover:
 - recovery ramp,
 - yaw smoothing.
 
-The repository suite has 68 tests:
+The repository suite has 72 tests:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'

@@ -55,6 +55,13 @@ The shadow lap is a stress check, not part of the supported release target. The
 recorded run passes, but repeat center runs have stopped at 34.4 m and 113.2 m.
 It is not repeatable yet.
 
+I also added curvature-based speed planning. At the optional 2.0 m/s profile,
+the car runs 2.0 m/s on the straights and about 1.5 m/s in the 15 m curves. All
+three solid-track scenarios pass: 81.00 s (center), 84.44 s (left), and 82.66 s
+(right), with p95 errors of 0.231 m, 0.300 m, and 0.281 m. That is 4–8% faster
+than the 1.5 m/s release run. Raw results are in
+[`results-fast/`](results-fast/). The release default stays at 1.5 m/s.
+
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
 
@@ -66,8 +73,8 @@ are in [`docs/evaluation.md`](docs/evaluation.md).
   pixels onto the ground plane, fits the two white boundaries, and publishes a
   lane center and a 4 m camera lookahead target.
 - **Controller** uses only `LaneEstimate` and odometry. It applies pure pursuit,
-  a speed ramp, curvature and yaw limits, and a yaw smoother. It stops on an
-  invalid, missing, or stale estimate.
+  a speed ramp, a curvature-based speed limit, steering and yaw limits, and a
+  yaw smoother. It stops on an invalid, missing, or stale estimate.
 - **Evaluator** is a separate process. It reads Gazebo model pose and the
   generated centerline for scoring. Neither perception nor control can see
   those inputs.
@@ -155,7 +162,7 @@ Fast tests:
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-The suite has 68 tests: track geometry, car and bridge limits, perception
+The suite has 72 tests: track geometry, car and bridge limits, perception
 frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
 
 Run the three release scenarios:
@@ -178,6 +185,7 @@ ros2-lane-keeping/
 ├── tests/                              # unit tests and saved camera frames
 ├── results/                            # solid-track scenario JSON, CSV, summary
 ├── results-markings/                   # dashed and worn track scenario results
+├── results-fast/                       # 2.0 m/s speed-planning results
 ├── results-lighting/                   # low-sun shadow scenario results
 ├── results-vm/                         # native VM result (failed target)
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
@@ -202,17 +210,18 @@ rename. The project name is ros2-lane-keeping.
   estimate for up to 0.25 s; a longer loss still stops the car. A fallback that
   drove from one visible boundary was tested and rejected because it left the
   lane in one run.
-- Speed is constant at 1.5 m/s. There is no curve speed planning.
+- The release speed is constant at 1.5 m/s. The optional 2.0 m/s profile adds
+  the curve speed limit and is validated on the solid track only.
 - The controller stops on any perception gap instead of coasting through it.
 - There is no traffic, weather, occlusion, or obstacle handling.
 - Meeting the target on this track is not a claim of road-ready autonomy.
 
 ## Next
 
-Add recovery after longer perception loss and reduce the remaining stale-frame
-stops. Then add curve speed planning and smoother steering, followed by
-multiple lanes and traffic. A learned detector comes only after there is a
-dataset and a fixed evaluation protocol.
+Add recovery after longer perception loss and smoother steering, then reduce the
+remaining stale-frame stops. After that, add multiple lanes and traffic. A
+learned detector comes only after there is a dataset and a fixed evaluation
+protocol.
 
 ## License
 

@@ -120,7 +120,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The full test suite has 68 tests.
+stale timestamps. The full test suite has 72 tests.
 
 ### Dashed and worn frames
 
