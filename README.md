@@ -24,7 +24,7 @@ error stays below 0.35 m.
 - ROS 2 Jazzy.
 - Gazebo Sim 8.15.0.
 - Track version 1, 134.248 m centerline, 3.5 m lane.
-- Demo and evaluation run: commit `7484c39`, 1.5 m/s, lookahead gain 1.2, 90°
+- Demo and evaluation run: commit `8ba1bb0`, 1.5 m/s, lookahead gain 1.2, 90°
   camera.
 
 A native Ubuntu 24.04 ARM64 VM was also tested with Lima and Apple
