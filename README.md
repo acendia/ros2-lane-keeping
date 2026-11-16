@@ -7,8 +7,9 @@ lane using only its forward camera.
 
 ![Two-lane demo at 2.0 m/s](docs/media/two_lane_fast_demo.gif)
 
-Two-lane right-lane demo at the 2.0 m/s profile: 2.0 m/s on straights, about
-1.4–1.5 m/s in curves. Camera on the left, perception overlay on the right.
+Seven-second two-lane right-lane demo at the 2.0 m/s profile: 2.0 m/s on
+straights, about 1.4–1.5 m/s in curves. Camera on the left, perception overlay
+on the right.
 
 ## Results
 
