@@ -10,6 +10,10 @@ lane using only its forward camera.
 Short two-lane demo: camera on the left, perception overlay on the right. The
 clip is 36 s from the right-lane run.
 
+[![Faster two-lane demo frames](docs/images/two_lane_fast_demo_contact.png)](docs/media/two_lane_fast_demo.mp4)
+
+Faster 2.0 m/s profile: 2.0 m/s on straights, about 1.4–1.5 m/s in curves.
+
 ## Results
 
 Release target: all three starting positions complete a lap, no part of the
