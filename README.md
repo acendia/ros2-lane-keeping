@@ -5,14 +5,10 @@ lane using only its forward camera.
 
 ![Demo sequence: camera, lane estimate, curve, lap error](docs/images/demo_sequence.png)
 
-[![Two-lane demo frames](docs/images/two_lane_demo_contact.png)](docs/media/two_lane_demo.mp4)
+![Two-lane demo at 2.0 m/s](docs/media/two_lane_fast_demo.gif)
 
-Short two-lane demo: camera on the left, perception overlay on the right. The
-clip is 36 s from the right-lane run.
-
-[![Faster two-lane demo frames](docs/images/two_lane_fast_demo_contact.png)](docs/media/two_lane_fast_demo.mp4)
-
-Faster 2.0 m/s profile: 2.0 m/s on straights, about 1.4–1.5 m/s in curves.
+Two-lane right-lane demo at the 2.0 m/s profile: 2.0 m/s on straights, about
+1.4–1.5 m/s in curves. Camera on the left, perception overlay on the right.
 
 ## Results
 

@@ -23,3 +23,6 @@ __pycache__/
 
 # Local test artifacts
 artifacts/
+
+# Video files are kept local unless explicitly requested.
+*.mp4
