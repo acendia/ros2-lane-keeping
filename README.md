@@ -5,6 +5,11 @@ lane using only its forward camera.
 
 ![Demo sequence: camera, lane estimate, curve, lap error](docs/images/demo_sequence.png)
 
+[![Two-lane demo frames](docs/images/two_lane_demo_contact.png)](docs/media/two_lane_demo.mp4)
+
+Short two-lane demo: camera on the left, perception overlay on the right. The
+clip is 36 s from the right-lane run.
+
 ## Results
 
 Release target: all three starting positions complete a lap, no part of the
