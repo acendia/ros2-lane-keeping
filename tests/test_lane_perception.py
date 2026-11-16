@@ -1,5 +1,6 @@
 """Tests for the pure lane perception pipeline."""
 
+import dataclasses
 import importlib.util
 import json
 from pathlib import Path
@@ -84,6 +85,25 @@ def test_labeled_frame(set_name, name):
         label['lane_width_m'],
         abs=labels['width_tolerance_m'])
     assert result.confidence > 0.6
+
+
+def test_rightmost_lane_selection():
+    """Three solid lines must select the lane nearest the right edge."""
+    image = np.full((360, 640, 3), 90, dtype=np.uint8)
+    for offset in (-1.81, 1.81, 5.43):
+        points = []
+        for x_m in np.linspace(3.6, 12.0, 60):
+            pixel = GROUND.project(float(x_m), offset)
+            if pixel is not None:
+                points.append(pixel)
+        cv2.polylines(
+            image, [np.array(points, dtype=np.int32)], False,
+            (235, 235, 235), 3, cv2.LINE_AA)
+    config = dataclasses.replace(CONFIG, lane_strategy='rightmost')
+    result = lane_perception.analyze_frame(image, GROUND, config)
+    assert result.valid
+    assert result.lateral_error_m == pytest.approx(0.0, abs=0.1)
+    assert result.lane_width_m == pytest.approx(3.62, abs=0.15)
 
 
 def test_dashed_frame_groups_multiple_pieces():

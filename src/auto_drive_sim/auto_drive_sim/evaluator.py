@@ -85,6 +85,7 @@ class Evaluator(Node):
         self.declare_parameter('timeout_s', 130.0)
         self.declare_parameter('centerline_path', '')
         self.declare_parameter('track_config_path', '')
+        self.declare_parameter('lane_center_y', 15.0)
 
         share = Path(get_package_share_directory('auto_drive_sim'))
         centerline_path = self.get_parameter('centerline_path').value
@@ -276,7 +277,8 @@ class Evaluator(Node):
         result = {
             'scenario': self.scenario,
             'start_pose': [round(float(value), 3) for value in self.start],
-            'start_offset_m': round(float(self.start[1] - 15.0), 3),
+            'start_offset_m': round(
+                float(self.start[1] - self.get_parameter('lane_center_y').value), 3),
             'lap_complete': bool(self.lap_complete),
             'lap_time_s': None if lap_time is None else round(lap_time, 3),
             'duration_s': round(duration, 3),

@@ -78,6 +78,7 @@ class PerceptionConfig:
     local_value_min: int = 60
     marking_open_px: int = 3
     hold_last_valid_s: float = 0.25
+    lane_strategy: str = 'single'
     max_image_age_s: float = 0.3
 
 
@@ -333,6 +334,9 @@ def extract_boundary_points(mask: np.ndarray, ground: GroundPlane,
                             config: PerceptionConfig) -> tuple:
     """Group marking pieces into left and right boundary point sets."""
     components = _marking_components(mask, ground, config)
+    if config.lane_strategy == 'rightmost' and len(components) > 2:
+        components = sorted(
+            components, key=lambda component: component.y_center_m)[:2]
     return _join_points(components, config)
 
 
@@ -529,7 +533,10 @@ class LanePerception(Node):
         """Create the camera subscription and publishers."""
         super().__init__('lane_perception')
         self.camera = CameraModel()
-        self.config = PerceptionConfig()
+        self.declare_parameter('lane_strategy', 'single')
+        self.config = PerceptionConfig(
+            lane_strategy=self.get_parameter(
+                'lane_strategy').value)
         self.ground = GroundPlane(self.camera)
         self.bridge = CvBridge()
         self.estimate_publisher = self.create_publisher(

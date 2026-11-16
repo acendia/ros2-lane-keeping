@@ -140,6 +140,42 @@ bridges `/clock`. To load the dashed and worn road, launch the demo with
 `world:=car_world_markings.sdf`. `gui:=true` starts the Gazebo client on a
 machine with a display; the Docker environment on this Mac has no display.
 
+## Two-lane variant
+
+Track version 3 in
+[`src/auto_drive_sim/config/track_two_lane.yaml`](../src/auto_drive_sim/config/track_two_lane.yaml)
+keeps the same oval but adds a second 3.5 m lane. The three marking centres are
+at road-centre offsets −3.62 m, 0 m, and +3.62 m. The car drives in the right
+lane, whose centreline is 1.81 m right of the road centre. Its lane length is
+122.887 m, not the road-centre length of 134.248 m.
+
+The generated assets are in
+[`src/auto_drive_sim/models/road_two_lane/`](../src/auto_drive_sim/models/road_two_lane/).
+The world is `car_world_two_lane.sdf`, with the car starting at
+`(-10.0, 13.19)`.
+
+Regenerate it with:
+
+```bash
+python3 tools/generate_track.py \
+  --config src/auto_drive_sim/config/track_two_lane.yaml \
+  --output src/auto_drive_sim/models/road_two_lane
+```
+
+Run the right-lane check:
+
+```bash
+./docker/run.sh bash -lc 'WORLD=car_world_two_lane.sdf \
+  START_Y=13.19 LANE_CENTER_Y=13.19 LANE_STRATEGY=rightmost \
+  CENTERLINE_PATH=$PWD/install/auto_drive_sim/share/auto_drive_sim/models/road_two_lane/centerline.csv \
+  RESULTS_DIR=results-two-lane RUN_DIR=artifacts/scenarios-two-lane \
+  tools/run_scenarios.sh'
+```
+
+All three scenarios pass: 83.62 s, 83.64 s, and 83.62 s, with p95 errors of
+0.269 m, 0.270 m, and 0.270 m. There are no crossings and no stops. Results are
+in [`results-two-lane/`](../results-two-lane/).
+
 ## Shadow test world
 
 `car_world_lighting.sdf` keeps the dashed and worn road but lowers the ambient
@@ -200,6 +236,8 @@ that edge. Later perception work should not treat it as a lane feature.
   pattern. Long gaps, heavy wear, and wet markings are not tested.
 - The shadow world passes with 8–10 stop events. A longer perception loss still
   stops the car.
+- The two-lane variant uses solid boundaries and the right lane only. There is
+  no lane change, intersections, or traffic.
 - Flat road with uniform materials and no texture.
 - The road is visual geometry without collision; the car uses the ground plane
   for physics.

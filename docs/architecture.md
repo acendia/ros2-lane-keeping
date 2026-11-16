@@ -32,7 +32,8 @@ The evaluation bridge is in a separate config file,
 ## Perception summary
 
 The camera is fixed at 1.3 m, pitched 0.05 rad down, with a 90° horizontal
-field of view. Each pixel is projected onto the ground plane using the camera
+field of view. The two-lane variant uses `lane_strategy=rightmost`, which keeps
+the two rightmost boundary lines and keeps the car in the right lane. Each pixel is projected onto the ground plane using the camera
 height and intrinsics. Bright, low-saturation pixels inside a road ROI from
 3.5 to 15 m forward and ±8 m lateral are grouped into marking pieces. A lit
 frame uses the global white threshold; if that fails, a local-contrast mask is

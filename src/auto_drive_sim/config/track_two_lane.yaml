@@ -1,0 +1,22 @@
+# Two-lane oval. The car drives in the right lane (-Y side).
+track_version: 3
+model_name: road_two_lane
+lane_count: 2
+track:
+  straight_length_m: 20.0
+  curve_radius_m: 15.0
+  lane_width_m: 3.5
+  marking_width_m: 0.12
+  shoulder_width_m: 0.75
+  sample_spacing_m: 0.10
+  asphalt_height_m: 0.005
+  marking_height_m: 0.012
+  asphalt_color_rgb: [0.22, 0.22, 0.24]
+  marking_color_rgb: [0.95, 0.95, 0.95]
+
+markings:
+  style: solid
+
+start_pose:
+  s_m: 0.0
+  z_m: 0.05

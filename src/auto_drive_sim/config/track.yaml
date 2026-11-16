@@ -3,6 +3,7 @@
 # the two white boundary strips.
 track_version: 1
 model_name: road
+lane_count: 1
 track:
   straight_length_m: 20.0
   curve_radius_m: 15.0

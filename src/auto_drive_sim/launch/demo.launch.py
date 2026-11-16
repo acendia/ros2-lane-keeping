@@ -69,6 +69,11 @@ def generate_launch_description():
             default_value='1.5',
             description='Target speed in m/s.',
         ),
+        DeclareLaunchArgument(
+            'lane_strategy',
+            default_value='single',
+            description='Lane selection: single or rightmost.',
+        ),
         OpaqueFunction(function=_start_gazebo),
         RosGzBridge(
             bridge_name='car_bridge',
@@ -78,7 +83,10 @@ def generate_launch_description():
             package='auto_drive_sim',
             executable='lane_perception',
             output='screen',
-            parameters=[{'use_sim_time': True}],
+            parameters=[{
+                'use_sim_time': True,
+                'lane_strategy': LaunchConfiguration('lane_strategy'),
+            }],
         ),
         Node(
             package='foxglove_bridge',

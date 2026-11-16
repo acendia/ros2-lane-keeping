@@ -69,6 +69,12 @@ The dashed and shadow results below were measured before the latest steering
 and recovery changes. The solid release and the 2.0 m/s profile use the current
 controller.
 
+A two-lane variant now runs in the right lane. Perception keeps the two
+rightmost boundary lines. All three scenarios pass: 83.62 s (center), 83.64 s
+(left), and 83.62 s (right), with p95 errors of 0.269 m, 0.270 m, and 0.270 m.
+There were no boundary crossings and no stops. The right lane is 122.887 m
+long. Raw results are in [`results-two-lane/`](results-two-lane/).
+
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
 
@@ -169,7 +175,7 @@ Fast tests:
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-The suite has 74 tests: track geometry, car and bridge limits, perception
+The suite has 78 tests: track geometry, car and bridge limits, perception
 frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
 
 Run the three release scenarios:
@@ -193,6 +199,7 @@ ros2-lane-keeping/
 ├── results/                            # solid-track scenario JSON, CSV, summary
 ├── results-markings/                   # dashed and worn track scenario results
 ├── results-fast/                       # 2.0 m/s speed-planning results
+├── results-two-lane/                   # two-lane right-lane results
 ├── results-lighting/                   # low-sun shadow scenario results
 ├── results-vm/                         # native VM result (failed target)
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
@@ -225,10 +232,9 @@ rename. The project name is ros2-lane-keeping.
 
 ## Next
 
-Add recovery after longer perception loss and smoother steering, then reduce the
-remaining stale-frame stops. After that, add multiple lanes and traffic. A
-learned detector comes only after there is a dataset and a fixed evaluation
-protocol.
+Add a lead vehicle and following/stopping behavior in the right lane, then
+extend the two-lane check to lane choice. A learned detector comes only after
+there is a dataset and a fixed evaluation protocol.
 
 ## License
 

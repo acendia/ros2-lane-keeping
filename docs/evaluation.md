@@ -123,6 +123,23 @@ runs are within 1–2% of the 1.5 m/s times and have more stale-frame stops. Raw
 results are in [`results-fast/`](../results-fast/). The 2.0 m/s profile is
 validated on the solid track only.
 
+## Two-lane track
+
+Track version 3 adds a second 3.5 m lane. The car drives in the right lane, and
+perception uses `lane_strategy=rightmost` to keep the two rightmost boundary
+lines. The right lane centreline is 1.81 m right of the road centre and is
+122.887 m long.
+
+| Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| center | yes | 83.62 | 0.171 | 0.269 | 0.270 | no | 99.5 | 0 |
+| left +0.3 m | yes | 83.64 | 0.171 | 0.270 | 0.300 | no | 99.6 | 0 |
+| right −0.3 m | yes | 83.62 | 0.171 | 0.270 | 0.300 | no | 99.8 | 0 |
+
+**Two-lane right-lane check: PASS.** The lap times are shorter than the
+one-lane times because the right lane is shorter, not because the car is faster.
+Raw results are in [`results-two-lane/`](../results-two-lane/).
+
 ## Dashed and worn track
 
 Track version 2 keeps the same oval, start poses, controller, and evaluator. It

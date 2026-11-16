@@ -12,6 +12,10 @@ ASSET_DIR = REPO_ROOT / 'src/auto_drive_sim/models/road'
 MARKINGS_CONFIG_PATH = (
     REPO_ROOT / 'src/auto_drive_sim/config/track_markings.yaml')
 MARKINGS_ASSET_DIR = REPO_ROOT / 'src/auto_drive_sim/models/road_markings'
+TWO_LANE_CONFIG_PATH = (
+    REPO_ROOT / 'src/auto_drive_sim/config/track_two_lane.yaml')
+TWO_LANE_ASSET_DIR = (
+    REPO_ROOT / 'src/auto_drive_sim/models/road_two_lane')
 
 _SPEC = importlib.util.spec_from_file_location(
     'generate_track', REPO_ROOT / 'tools' / 'generate_track.py')
@@ -182,6 +186,53 @@ def test_markings_regeneration_is_byte_identical(markings_config, tmp_path):
     for relative in first_files:
         assert (first / relative).read_bytes() == \
             (second / relative).read_bytes()
+
+
+@pytest.fixture(scope='module')
+def two_lane_config():
+    """Load the two-lane track configuration."""
+    return generate_track.load_config(TWO_LANE_CONFIG_PATH)
+
+
+def test_two_lane_geometry(two_lane_config, tmp_path):
+    """The two-lane track must have three boundaries and a right lane path."""
+    assert two_lane_config.lane_count == 2
+    offsets = generate_track.marking_offsets(two_lane_config)
+    assert offsets == pytest.approx([-3.62, 0.0, 3.62])
+    samples = generate_track.sample_centerline(two_lane_config)
+    right_lane = generate_track.shifted_samples(samples, -1.81)
+    assert right_lane[0].x_m == pytest.approx(-10.0)
+    assert right_lane[0].y_m == pytest.approx(13.19)
+    summary = generate_track.generate_assets(two_lane_config, tmp_path)
+    assert summary['start_pose']['y_m'] == pytest.approx(13.19)
+
+
+def test_two_lane_meshes_reference_valid_vertices(two_lane_config):
+    """Every two-lane face index must point at a real vertex."""
+    for mesh in sorted((TWO_LANE_ASSET_DIR / 'meshes').glob('*.obj')):
+        vertex_count = 0
+        max_index = 0
+        for line in mesh.read_text(encoding='utf-8').splitlines():
+            if line.startswith('v '):
+                vertex_count += 1
+            elif line.startswith('f '):
+                for token in line.split()[1:]:
+                    max_index = max(max_index, int(token.split('/')[0]))
+        assert max_index <= vertex_count, f'{mesh.name} has bad face indices'
+
+
+def test_committed_two_lane_assets_are_current(two_lane_config, tmp_path):
+    """The checked-in two-lane assets must match a fresh generation."""
+    generate_track.generate_assets(two_lane_config, tmp_path)
+    generated_files = sorted(
+        path.relative_to(tmp_path) for path in tmp_path.rglob('*')
+        if path.is_file())
+
+    for relative in generated_files:
+        committed = TWO_LANE_ASSET_DIR / relative
+        assert committed.is_file(), f'missing committed asset {relative}'
+        assert committed.read_bytes() == (tmp_path / relative).read_bytes(), \
+            f'committed asset {relative} is stale'
 
 
 def test_committed_markings_assets_are_current(markings_config, tmp_path):

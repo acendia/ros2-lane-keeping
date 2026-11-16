@@ -31,6 +31,11 @@ if [ ! -f "$source_world" ]; then
 fi
 environment="${SUMMARY_ENVIRONMENT:-Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, Gazebo Sim 8.15.0.}"
 run_root="${RUN_DIR:-$repo_dir/artifacts/scenarios}"
+lane_strategy="${LANE_STRATEGY:-single}"
+start_center_y="${START_Y:-15.0}"
+lane_center_y="${LANE_CENTER_Y:-15.0}"
+centerline_path="${CENTERLINE_PATH:-}"
+track_config_path="${TRACK_CONFIG_PATH:-}"
 
 for name in "${scenarios[@]}"; do
   case "$name" in
@@ -45,14 +50,15 @@ for name in "${scenarios[@]}"; do
   mkdir -p "$run_dir" "$result_dir"
   python3 "$repo_dir/tools/make_scenario_world.py" \
     --offset "$offset" --output "$run_dir/world.sdf" \
-    --source-world "$source_world" >/dev/null
-  start_y="$(python3 -c "print(15.0 + ($offset))")"
+    --source-world "$source_world" --start-y "$start_center_y" >/dev/null
+  start_y="$(python3 -c "print($start_center_y + ($offset))")"
 
   echo "=== scenario: $name (offset ${offset} m) ==="
 
   timeout --signal=INT --kill-after=5s 420s \
     ros2 launch auto_drive_sim demo.launch.py gui:=false controller:=false \
-    world:="$run_dir/world.sdf" >"$run_dir/launch.log" 2>&1 &
+    world:="$run_dir/world.sdf" lane_strategy:="$lane_strategy" \
+    >"$run_dir/launch.log" 2>&1 &
   launch_pid=$!
 
   ros2 run ros_gz_bridge bridge_node --ros-args \
@@ -62,14 +68,25 @@ for name in "${scenarios[@]}"; do
 
   sleep 20
 
+  evaluator_args=(
+    -p use_sim_time:=true
+    -p scenario:="$name"
+    -p start_x:=-10.0
+    -p start_y:="$start_y"
+    -p start_yaw:=0.0
+    -p lane_center_y:="$lane_center_y"
+    -p output_dir:="$result_dir"
+    -p timeout_s:=130.0
+  )
+  if [ -n "$centerline_path" ]; then
+    evaluator_args+=(-p centerline_path:="$centerline_path")
+  fi
+  if [ -n "$track_config_path" ]; then
+    evaluator_args+=(-p track_config_path:="$track_config_path")
+  fi
+
   timeout 420s ros2 run auto_drive_sim evaluator --ros-args \
-    -p use_sim_time:=true \
-    -p scenario:="$name" \
-    -p start_x:=-10.0 \
-    -p start_y:="$start_y" \
-    -p start_yaw:=0.0 \
-    -p output_dir:="$result_dir" \
-    -p timeout_s:=130.0 \
+    "${evaluator_args[@]}" \
     >"$run_dir/evaluator.log" 2>&1 &
   eval_pid=$!
 

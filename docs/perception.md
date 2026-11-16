@@ -70,7 +70,9 @@ On the dashed and worn variant, the same threshold gives:
    8 pixels and 5 ground points in the ROI. Dashed lines produce many pieces.
    Pair pieces with similar forward distance and a 2.0–6.0 m lateral
    separation, then assign the higher-lateral piece of each pair to the left
-   boundary. Attach any remaining pieces to the nearer fitted side.
+   boundary. Attach any remaining pieces to the nearer fitted side. With
+   `lane_strategy=rightmost`, only the two rightmost components are kept; the
+   two-lane world uses this to stay in the right lane.
 5. **Fit each boundary.** Fit a quadratic `y(x)` with three residual-rejection
    passes when the points span at least 2.5 m. A single dash covering 1.0–2.5 m
    uses a line fit, and only when its nearest point is within 1.6 m of the 4 m
@@ -120,7 +122,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The full test suite has 74 tests.
+stale timestamps. The full test suite has 78 tests.
 
 ### Dashed and worn frames
 
@@ -270,6 +272,8 @@ another run, so it is not in the shipped code.
   car, and driving from one visible boundary was not kept.
 - The fitted width on a curve can be about 0.2 m wider than the true projected
   width. The controller uses the lane center, not this width.
+- `lane_strategy=rightmost` assumes the car stays in the right lane of a
+  two-lane road with solid boundaries. It does not choose or change lanes.
 - The mark threshold is tuned for this scene. A different road material or
   lighting needs a new threshold.
 - The camera cannot see the ground closer than about 3.4 m, so the lookahead is
