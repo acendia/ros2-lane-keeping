@@ -147,6 +147,55 @@ def test_right_command():
     assert command.yaw_rate_radps < 0.0
 
 
+def test_yaw_acceleration_limit():
+    """A large steering jump must be rate limited."""
+    config = lane_controller.ControllerConfig(
+        target_speed_mps=2.0,
+        max_acceleration_mps2=100.0,
+        max_deceleration_mps2=100.0,
+        max_lateral_acceleration_mps2=100.0,
+        min_curve_speed_mps=0.6,
+        max_curvature_1pm=0.2,
+        max_yaw_rate_radps=0.6,
+        max_yaw_acceleration_radps2=1.0,
+        lookahead_gain=1.0,
+        yaw_smoothing_alpha=1.0,
+    )
+    follower = lane_controller.LaneFollower(config)
+    _update(follower, 0.0, target=(5.4, 5.4))
+    first = _update(follower, 0.1, target=(5.4, 5.4))
+    second = _update(follower, 0.2, target=(5.4, 5.4))
+    assert first.yaw_rate_radps == pytest.approx(0.1)
+    assert second.yaw_rate_radps == pytest.approx(0.2)
+
+
+def test_long_loss_recovery_cap():
+    """A long stop must recover under the reduced speed cap."""
+    config = lane_controller.ControllerConfig(
+        target_speed_mps=2.0,
+        max_acceleration_mps2=10.0,
+        max_deceleration_mps2=10.0,
+        max_lateral_acceleration_mps2=100.0,
+        min_curve_speed_mps=0.6,
+        max_curvature_1pm=0.2,
+        max_yaw_rate_radps=0.6,
+        lookahead_gain=1.0,
+        yaw_smoothing_alpha=1.0,
+        long_loss_s=0.3,
+        recovery_speed_mps=0.8,
+        recovery_hold_s=0.5,
+    )
+    follower = lane_controller.LaneFollower(config)
+    _ramp(follower, seconds=1.0)
+    _update(follower, 2.0, valid=False)
+    recovered = _update(follower, 2.4)
+    held = _update(follower, 2.5)
+    released = _update(follower, 3.0)
+    assert recovered.speed_mps == pytest.approx(0.8)
+    assert held.speed_mps == pytest.approx(0.8)
+    assert released.speed_mps == pytest.approx(2.0)
+
+
 def test_yaw_rate_limit():
     """The yaw-rate command must respect its own limit."""
     config = lane_controller.ControllerConfig(

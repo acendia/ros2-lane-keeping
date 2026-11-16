@@ -7,11 +7,11 @@
   ],
   "start_offset_m": 0.0,
   "lap_complete": true,
-  "lap_time_s": 81.001,
-  "duration_s": 86.227,
+  "lap_time_s": 81.002,
+  "duration_s": 84.43,
   "progress_m": 134.248,
   "centerline_length_m": 134.248,
-  "lateral_error_mean_abs_m": 0.1489,
+  "lateral_error_mean_abs_m": 0.1543,
   "lateral_error_p95_abs_m": 0.2308,
   "lateral_error_max_abs_m": 0.232,
   "lane_width_m": 3.5,
@@ -19,8 +19,8 @@
   "footprint_crossing_samples": 0,
   "first_footprint_crossing_s": null,
   "perception_valid_percent": 100.0,
-  "perception_messages": 1292,
+  "perception_messages": 1277,
   "stop_events": 0,
   "stop_times_s": [],
-  "samples": 6007
+  "samples": 5593
 }

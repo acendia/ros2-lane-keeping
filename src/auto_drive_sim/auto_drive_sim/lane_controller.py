@@ -22,8 +22,12 @@ class ControllerConfig:
     min_curve_speed_mps: float = 0.6
     max_curvature_1pm: float = 0.15
     max_yaw_rate_radps: float = 0.6
+    max_yaw_acceleration_radps2: float = 1.5
     lookahead_gain: float = 1.2
     yaw_smoothing_alpha: float = 0.35
+    long_loss_s: float = 0.5
+    recovery_speed_mps: float = 0.8
+    recovery_hold_s: float = 1.0
     max_lane_age_s: float = 0.3
     max_odom_age_s: float = 0.3
     command_rate_hz: float = 20.0
@@ -45,6 +49,15 @@ class ControllerConfig:
             raise ValueError('max_curvature_1pm must be positive')
         if self.max_yaw_rate_radps <= 0.0:
             raise ValueError('max_yaw_rate_radps must be positive')
+        if self.max_yaw_acceleration_radps2 <= 0.0:
+            raise ValueError('max_yaw_acceleration_radps2 must be positive')
+        if self.long_loss_s < 0.0:
+            raise ValueError('long_loss_s must not be negative')
+        if not 0.0 < self.recovery_speed_mps <= self.target_speed_mps:
+            raise ValueError(
+                'recovery_speed_mps must be in (0, target_speed_mps]')
+        if self.recovery_hold_s < 0.0:
+            raise ValueError('recovery_hold_s must not be negative')
         if self.lookahead_gain <= 0.0:
             raise ValueError('lookahead_gain must be positive')
         if self.command_rate_hz <= 0.0:
@@ -94,6 +107,8 @@ class LaneFollower:
         self.speed_mps = 0.0
         self.yaw_rate_radps = 0.0
         self.last_update_s = None
+        self.stop_started_s = None
+        self.recovery_until_s = None
 
     def update(self, now_s: float, estimate_present: bool,
                estimate_valid: bool, estimate_stamp_s: float,
@@ -109,9 +124,17 @@ class LaneFollower:
             now_s, estimate_present, estimate_valid, estimate_stamp_s,
             odom_present, odom_stamp_s)
         if reason:
+            if self.stop_started_s is None:
+                self.stop_started_s = now_s
             self.speed_mps = 0.0
             self.yaw_rate_radps = 0.0
             return ControllerCommand(0.0, 0.0, reason)
+
+        if self.stop_started_s is not None:
+            stop_duration = now_s - self.stop_started_s
+            if stop_duration >= self.config.long_loss_s:
+                self.recovery_until_s = now_s + self.config.recovery_hold_s
+            self.stop_started_s = None
 
         lookahead_x = target_x_m * self.config.lookahead_gain
         lookahead_y = target_y_m * self.config.lookahead_gain
@@ -123,6 +146,12 @@ class LaneFollower:
             return ControllerCommand(0.0, 0.0, 'bad_lookahead')
 
         speed_limit = speed_limit_for_curvature(curvature, self.config)
+        if self.recovery_until_s is not None:
+            if now_s < self.recovery_until_s:
+                speed_limit = min(
+                    speed_limit, self.config.recovery_speed_mps)
+            else:
+                self.recovery_until_s = None
         if self.speed_mps < speed_limit:
             self.speed_mps = min(
                 speed_limit,
@@ -137,8 +166,12 @@ class LaneFollower:
         target_yaw = max(-self.config.max_yaw_rate_radps,
                          min(self.config.max_yaw_rate_radps, target_yaw))
         alpha = self.config.yaw_smoothing_alpha
-        self.yaw_rate_radps = (
+        smoothed_yaw = (
             alpha * target_yaw + (1.0 - alpha) * self.yaw_rate_radps)
+        max_yaw_step = self.config.max_yaw_acceleration_radps2 * dt
+        self.yaw_rate_radps = max(
+            self.yaw_rate_radps - max_yaw_step,
+            min(self.yaw_rate_radps + max_yaw_step, smoothed_yaw))
         return ControllerCommand(
             round(self.speed_mps, 4),
             round(self.yaw_rate_radps, 4),
@@ -173,8 +206,12 @@ class LaneController(Node):
         self.declare_parameter('min_curve_speed_mps', 0.6)
         self.declare_parameter('max_curvature_1pm', 0.15)
         self.declare_parameter('max_yaw_rate_radps', 0.6)
+        self.declare_parameter('max_yaw_acceleration_radps2', 1.5)
         self.declare_parameter('lookahead_gain', 1.2)
         self.declare_parameter('yaw_smoothing_alpha', 0.35)
+        self.declare_parameter('long_loss_s', 0.5)
+        self.declare_parameter('recovery_speed_mps', 0.8)
+        self.declare_parameter('recovery_hold_s', 1.0)
         self.declare_parameter('max_lane_age_s', 0.3)
         self.declare_parameter('max_odom_age_s', 0.3)
         self.declare_parameter('command_rate_hz', 20.0)
@@ -194,10 +231,18 @@ class LaneController(Node):
                 'max_curvature_1pm').value,
             max_yaw_rate_radps=self.get_parameter(
                 'max_yaw_rate_radps').value,
+            max_yaw_acceleration_radps2=self.get_parameter(
+                'max_yaw_acceleration_radps2').value,
             lookahead_gain=self.get_parameter(
                 'lookahead_gain').value,
             yaw_smoothing_alpha=self.get_parameter(
                 'yaw_smoothing_alpha').value,
+            long_loss_s=self.get_parameter(
+                'long_loss_s').value,
+            recovery_speed_mps=self.get_parameter(
+                'recovery_speed_mps').value,
+            recovery_hold_s=self.get_parameter(
+                'recovery_hold_s').value,
             max_lane_age_s=self.get_parameter(
                 'max_lane_age_s').value,
             max_odom_age_s=self.get_parameter(

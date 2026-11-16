@@ -13,9 +13,9 @@ error stays below 0.35 m.
 
 | Scenario | Lap | Lap time | p95 error | Max error | Crossing | Valid | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.88 s | 0.231 m | 0.232 m | no | 100% | 0 |
-| left +0.3 m | yes | 87.89 s | 0.262 m | 0.300 m | no | 100% | 0 |
-| right −0.3 m | yes | 87.87 s | 0.256 m | 0.300 m | no | 100% | 0 |
+| center | yes | 88.34 s | 0.231 m | 0.231 m | no | 100% | 0 |
+| left +0.3 m | yes | 88.37 s | 0.249 m | 0.300 m | no | 100% | 0 |
+| right −0.3 m | yes | 88.35 s | 0.262 m | 0.300 m | no | 100% | 0 |
 
 **Docker is the supported release environment. Release target: PASS.**
 
@@ -59,10 +59,15 @@ It is not repeatable yet.
 
 I also added curvature-based speed planning. At the optional 2.0 m/s profile,
 the car runs 2.0 m/s on the straights and about 1.5 m/s in the 15 m curves. All
-three solid-track scenarios pass: 81.00 s (center), 84.44 s (left), and 82.66 s
-(right), with p95 errors of 0.231 m, 0.300 m, and 0.281 m. That is 4–8% faster
-than the 1.5 m/s release run. Raw results are in
-[`results-fast/`](results-fast/). The release default stays at 1.5 m/s.
+three solid-track scenarios pass: 81.00 s (center), 89.40 s (left), and 87.34 s
+(right), with p95 errors of 0.231 m, 0.293 m, and 0.232 m. The center lap is
+about 8% faster; the offset runs are within 1–2% and have more stale-frame
+stops. Raw results are in [`results-fast/`](results-fast/). The release default
+stays at 1.5 m/s.
+
+The dashed and shadow results below were measured before the latest steering
+and recovery changes. The solid release and the 2.0 m/s profile use the current
+controller.
 
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
@@ -164,7 +169,7 @@ Fast tests:
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-The suite has 72 tests: track geometry, car and bridge limits, perception
+The suite has 74 tests: track geometry, car and bridge limits, perception
 frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
 
 Run the three release scenarios:

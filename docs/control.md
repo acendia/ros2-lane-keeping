@@ -38,8 +38,11 @@ the default is `1.0`.
 - Lateral acceleration limit: 0.15 m/s².
 - Minimum curve speed: 0.6 m/s.
 - Yaw-rate limit: 0.6 rad/s.
+- Yaw-acceleration limit: 1.5 rad/s².
 - Curvature limit: 0.15 1/m.
 - Yaw smoothing: first-order low pass with alpha 0.35 at 20 Hz.
+- Long-loss recovery: after a stop of at least 0.5 s, speed is capped at
+  0.8 m/s for 1.0 s before normal speed planning resumes.
 
 The speed does not jump to the target. It ramps from zero and resets to zero
 after a stop, so recovery also ramps.
@@ -99,8 +102,12 @@ speed went from 1.5 m/s to 0.0 m/s.
 | `min_curve_speed_mps` | 0.6 |
 | `max_curvature_1pm` | 0.15 |
 | `max_yaw_rate_radps` | 0.6 |
+| `max_yaw_acceleration_radps2` | 1.5 |
 | `lookahead_gain` | 1.2 |
 | `yaw_smoothing_alpha` | 0.35 |
+| `long_loss_s` | 0.5 |
+| `recovery_speed_mps` | 0.8 |
+| `recovery_hold_s` | 1.0 |
 | `max_lane_age_s` | 0.3 |
 | `max_odom_age_s` | 0.3 |
 | `command_rate_hz` | 20 |
@@ -143,7 +150,7 @@ The controller tests cover:
 - recovery ramp,
 - yaw smoothing.
 
-The repository suite has 72 tests:
+The repository suite has 74 tests:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'

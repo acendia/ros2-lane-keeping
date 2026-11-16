@@ -69,9 +69,9 @@ duration, not the metric timeline.
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|
-| center | yes | 87.88 | 0.147 | 0.231 | 0.232 | no | 100.0 | 0 |
-| left +0.3 m | yes | 87.89 | 0.168 | 0.262 | 0.300 | no | 100.0 | 0 |
-| right −0.3 m | yes | 87.87 | 0.168 | 0.256 | 0.300 | no | 100.0 | 0 |
+| center | yes | 88.34 | 0.147 | 0.231 | 0.231 | no | 100.0 | 0 |
+| left +0.3 m | yes | 88.37 | 0.169 | 0.249 | 0.300 | no | 100.0 | 0 |
+| right −0.3 m | yes | 88.35 | 0.168 | 0.262 | 0.300 | no | 100.0 | 0 |
 
 **Docker release target: PASS. Docker is the supported release environment.**
 
@@ -115,12 +115,13 @@ With `a_lat = 0.15 m/s²`, the 15 m oval curves cap the speed at 1.5 m/s. The
 
 | Profile | Center lap | Left lap | Right lap | p95 center / left / right | Stops |
 |---|---:|---:|---:|---:|---:|
-| 1.5 m/s release | 87.88 s | 87.89 s | 87.87 s | 0.231 / 0.262 / 0.256 m | 0 / 0 / 0 |
-| 2.0 m/s planned | 81.00 s | 84.44 s | 82.66 s | 0.231 / 0.300 / 0.281 m | 0 / 4 / 1 |
+| 1.5 m/s release | 88.34 s | 88.37 s | 88.35 s | 0.231 / 0.249 / 0.262 m | 0 / 0 / 0 |
+| 2.0 m/s planned | 81.00 s | 89.40 s | 87.34 s | 0.231 / 0.293 / 0.232 m | 0 / 7 / 4 |
 
-**2.0 m/s speed planning: PASS.** The offset runs are 4–8% faster. Raw results
-are in [`results-fast/`](../results-fast/). The 2.0 m/s profile is validated on
-the solid track only.
+**2.0 m/s speed planning: PASS.** The center lap is about 8% faster. The offset
+runs are within 1–2% of the 1.5 m/s times and have more stale-frame stops. Raw
+results are in [`results-fast/`](../results-fast/). The 2.0 m/s profile is
+validated on the solid track only.
 
 ## Dashed and worn track
 
@@ -128,6 +129,10 @@ Track version 2 keeps the same oval, start poses, controller, and evaluator. It
 changes only the markings: 3 m painted dashes, 0.75 m gaps, and every third
 dash split by a 0.18 m gap, narrowed to 75% width, and rendered in a dimmer
 worn material.
+
+These dashed results and the shadow results below predate the latest steering
+and recovery changes. The solid release and the 2.0 m/s profile use the current
+controller.
 
 | Scenario | Lap | Lap time (s) | Mean error (m) | p95 error (m) | Max error (m) | Crossing | Valid (%) | Stops |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|

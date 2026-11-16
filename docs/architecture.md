@@ -59,8 +59,10 @@ The speed ramps from zero at 0.6 m/s² to the target. A lateral-acceleration
 limit slows the car in curves; at the 1.5 m/s release target it holds the 15 m
 curves at 1.5 m/s, while the optional 2.0 m/s profile slows to about 1.5 m/s in
 the curves. Curvature is limited to 0.15 1/m, yaw rate to 0.6 rad/s, and yaw
-commands pass through a first-order smoother. The controller publishes zero speed when the lane estimate is
-invalid, missing, or older than 0.3 s, or when odometry is stale.
+commands pass through a first-order smoother and a 1.5 rad/s² yaw-acceleration
+limit. After a stop of at least 0.5 s, recovery is capped at 0.8 m/s for 1.0 s.
+The controller publishes zero speed when the lane estimate is invalid, missing,
+or older than 0.3 s, or when odometry is stale.
 
 The full parameter table and stop behavior are in [`control.md`](control.md).
 

@@ -5,8 +5,8 @@ Environment: Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, Gazebo Sim 8.15.0. Speed
 | Scenario | Lap | Lap time (s) | p95 error (m) | Max error (m) | Boundary crossing | Perception valid (%) | Stop events |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | center | yes | 81.00 | 0.231 | 0.232 | no | 100.0 | 0 |
-| left | yes | 84.44 | 0.300 | 0.300 | no | 100.0 | 4 |
-| right | yes | 82.66 | 0.281 | 0.300 | no | 100.0 | 1 |
+| left | yes | 89.40 | 0.293 | 0.300 | no | 100.0 | 7 |
+| right | yes | 87.34 | 0.232 | 0.300 | no | 100.0 | 4 |
 
 Release target: **PASS**
 
