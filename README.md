@@ -28,6 +28,7 @@ error stays below 0.35 m.
   camera.
 - 2.0 m/s speed-planning run: commit `0915fed`, 0.15 m/s² lateral limit,
   1.0 m/s² deceleration.
+- Two-lane right-lane run: commit `cc2fdbe`, `lane_strategy=rightmost`.
 
 A native Ubuntu 24.04 ARM64 VM was also tested with Lima and Apple
 Virtualization. It builds, passes the 50 tests present in that revision, and
