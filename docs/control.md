@@ -69,6 +69,19 @@ On the 15 m oval curves, `v_curve` is 1.5 m/s. At the release target of
 curves. That profile completed all three solid-track scenarios at 81.00 s,
 84.44 s, and 82.66 s.
 
+## Lead vehicle
+
+The controller subscribes to `/car/lead_distance` (`std_msgs/Float32`). If the
+message is fresh (0.5 s), it applies a follow-speed cap:
+
+```text
+v_lead = max(0, (distance − gap) · gain)
+v_limit = min(v_curve, v_lead)
+```
+
+The default gap is 6.0 m and the gain is 0.8 1/s. At or below the gap the
+controller commands zero speed and reports `lead_vehicle`.
+
 ## Stop conditions
 
 The controller publishes zero speed and zero yaw when:
@@ -80,6 +93,7 @@ The controller publishes zero speed and zero yaw when:
 | `stale_lane_estimate` | Estimate is older than 0.3 s |
 | `no_odometry` | No odometry has arrived |
 | `stale_odometry` | Odometry is older than 0.3 s |
+| `lead_vehicle` | Lead vehicle is at or below the follow gap |
 | `bad_lookahead` | Target is behind or non-finite |
 
 Perception republishes the last valid estimate for up to 0.25 s on a brief
@@ -150,7 +164,7 @@ The controller tests cover:
 - recovery ramp,
 - yaw smoothing.
 
-The repository suite has 78 tests:
+The repository suite has 83 tests:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'

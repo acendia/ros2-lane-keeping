@@ -74,6 +74,11 @@ def generate_launch_description():
             default_value='single',
             description='Lane selection: single or rightmost.',
         ),
+        DeclareLaunchArgument(
+            'lead_detector',
+            default_value='false',
+            description='Start the camera-based lead-vehicle detector.',
+        ),
         OpaqueFunction(function=_start_gazebo),
         RosGzBridge(
             bridge_name='car_bridge',
@@ -87,6 +92,13 @@ def generate_launch_description():
                 'use_sim_time': True,
                 'lane_strategy': LaunchConfiguration('lane_strategy'),
             }],
+        ),
+        Node(
+            package='auto_drive_sim',
+            executable='lead_detector',
+            output='screen',
+            condition=IfCondition(LaunchConfiguration('lead_detector')),
+            parameters=[{'use_sim_time': True}],
         ),
         Node(
             package='foxglove_bridge',

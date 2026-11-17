@@ -80,6 +80,12 @@ rightmost boundary lines. All three scenarios pass: 83.62 s (center), 83.64 s
 There were no boundary crossings and no stops. The right lane is 122.887 m
 long. Raw results are in [`results-two-lane/`](results-two-lane/).
 
+A lead-vehicle check is also in place. A static red lead vehicle sits in the
+right lane, and a camera detector publishes `/car/lead_distance`. The ego car
+approaches it and stops at 5.95 m camera distance with zero speed, controller
+state `lead_vehicle`, and no collision. The check is in
+[`results-lead/`](results-lead/).
+
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
 
@@ -90,9 +96,12 @@ are in [`docs/evaluation.md`](docs/evaluation.md).
 - **Perception** uses only `/car/camera/image_raw`. It projects bright marking
   pixels onto the ground plane, fits the two white boundaries, and publishes a
   lane center and a 4 m camera lookahead target.
-- **Controller** uses only `LaneEstimate` and odometry. It applies pure pursuit,
-  a speed ramp, a curvature-based speed limit, steering and yaw limits, and a
-  yaw smoother. It stops on an invalid, missing, or stale estimate.
+- **Controller** uses only `LaneEstimate`, odometry, and `/car/lead_distance`.
+  It applies pure pursuit, a speed ramp, a curvature-based speed limit,
+  steering and yaw limits, and a yaw smoother. It stops on an invalid, missing,
+  or stale estimate, and at the lead-vehicle follow gap.
+- **Lead detector** uses only the camera. It finds the red lead vehicle and
+  estimates distance from its apparent width.
 - **Evaluator** is a separate process. It reads Gazebo model pose and the
   generated centerline for scoring. Neither perception nor control can see
   those inputs.
@@ -180,7 +189,7 @@ Fast tests:
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-The suite has 78 tests: track geometry, car and bridge limits, perception
+The suite has 83 tests: track geometry, car and bridge limits, perception
 frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
 
 Run the three release scenarios:
@@ -205,6 +214,7 @@ ros2-lane-keeping/
 ├── results-markings/                   # dashed and worn track scenario results
 ├── results-fast/                       # 2.0 m/s speed-planning results
 ├── results-two-lane/                   # two-lane right-lane results
+├── results-lead/                       # lead-vehicle stop check
 ├── results-lighting/                   # low-sun shadow scenario results
 ├── results-vm/                         # native VM result (failed target)
 ├── docker/                             # Ubuntu 24.04 + ROS 2 Jazzy image
@@ -237,9 +247,9 @@ rename. The project name is ros2-lane-keeping.
 
 ## Next
 
-Add a lead vehicle and following/stopping behavior in the right lane, then
-extend the two-lane check to lane choice. A learned detector comes only after
-there is a dataset and a fixed evaluation protocol.
+Add a moving lead vehicle and following behavior, then lane choice. After that,
+add intersections and a route goal. A learned detector comes only after there
+is a dataset and a fixed evaluation protocol.
 
 ## License
 

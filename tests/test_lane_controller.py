@@ -23,14 +23,16 @@ CONFIG = lane_controller.ControllerConfig(
 
 
 def _update(follower, now, valid=True, target=(5.4, 0.0),
-            estimate_stamp=None, odom_stamp=None):
+            estimate_stamp=None, odom_stamp=None,
+            lead_distance=None, lead_age=0.0):
     if estimate_stamp is None:
         estimate_stamp = now
     if odom_stamp is None:
         odom_stamp = now
     return follower.update(
         now, True, valid, estimate_stamp,
-        target[0], target[1], True, odom_stamp)
+        target[0], target[1], True, odom_stamp,
+        lead_distance, lead_age)
 
 
 def _ramp(follower, seconds=2.0, target=(5.4, 0.0)):
@@ -145,6 +147,33 @@ def test_right_command():
     assert command.yaw_rate_radps == pytest.approx(
         -1.5 * 0.0664, abs=0.005)
     assert command.yaw_rate_radps < 0.0
+
+
+def test_lead_speed_cap():
+    """A nearby lead vehicle must cap the speed."""
+    config = lane_controller.ControllerConfig(
+        target_speed_mps=2.0,
+        max_acceleration_mps2=10.0,
+        max_deceleration_mps2=10.0,
+        max_lateral_acceleration_mps2=100.0,
+        min_curve_speed_mps=0.6,
+        max_curvature_1pm=0.2,
+        lookahead_gain=1.0,
+        yaw_smoothing_alpha=1.0,
+    )
+    follower = lane_controller.LaneFollower(config)
+    _ramp(follower, seconds=1.0)
+    command = _update(follower, 2.0, lead_distance=8.0)
+    assert command.speed_mps == pytest.approx(1.6)
+
+
+def test_lead_stop():
+    """A lead vehicle inside the gap must stop the car."""
+    follower = lane_controller.LaneFollower(lane_controller.ControllerConfig())
+    _ramp(follower)
+    command = _update(follower, 2.0, lead_distance=5.5)
+    assert command.status == 'lead_vehicle'
+    assert command.speed_mps == 0.0
 
 
 def test_yaw_acceleration_limit():

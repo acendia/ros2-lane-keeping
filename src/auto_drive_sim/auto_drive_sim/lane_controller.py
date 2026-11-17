@@ -9,6 +9,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
+from std_msgs.msg import Float32
 
 
 @dataclass(frozen=True)
@@ -28,6 +29,9 @@ class ControllerConfig:
     long_loss_s: float = 0.5
     recovery_speed_mps: float = 0.8
     recovery_hold_s: float = 1.0
+    lead_follow_gap_m: float = 6.0
+    lead_speed_gain: float = 0.8
+    lead_timeout_s: float = 0.5
     max_lane_age_s: float = 0.3
     max_odom_age_s: float = 0.3
     command_rate_hz: float = 20.0
@@ -58,6 +62,12 @@ class ControllerConfig:
                 'recovery_speed_mps must be in (0, target_speed_mps]')
         if self.recovery_hold_s < 0.0:
             raise ValueError('recovery_hold_s must not be negative')
+        if self.lead_follow_gap_m <= 0.0:
+            raise ValueError('lead_follow_gap_m must be positive')
+        if self.lead_speed_gain <= 0.0:
+            raise ValueError('lead_speed_gain must be positive')
+        if self.lead_timeout_s < 0.0:
+            raise ValueError('lead_timeout_s must not be negative')
         if self.lookahead_gain <= 0.0:
             raise ValueError('lookahead_gain must be positive')
         if self.command_rate_hz <= 0.0:
@@ -113,7 +123,9 @@ class LaneFollower:
     def update(self, now_s: float, estimate_present: bool,
                estimate_valid: bool, estimate_stamp_s: float,
                target_x_m: float, target_y_m: float,
-               odom_present: bool, odom_stamp_s: float) -> ControllerCommand:
+               odom_present: bool, odom_stamp_s: float,
+               lead_distance_m: Optional[float] = None,
+               lead_age_s: Optional[float] = None) -> ControllerCommand:
         """Update the controller and return the current command."""
         dt = 0.0
         if self.last_update_s is not None:
@@ -152,6 +164,17 @@ class LaneFollower:
                     speed_limit, self.config.recovery_speed_mps)
             else:
                 self.recovery_until_s = None
+        if lead_distance_m is not None and lead_age_s is not None and \
+                lead_age_s <= self.config.lead_timeout_s:
+            lead_limit = max(
+                0.0,
+                (lead_distance_m - self.config.lead_follow_gap_m) *
+                self.config.lead_speed_gain)
+            speed_limit = min(speed_limit, lead_limit)
+            if lead_limit <= 0.01:
+                self.speed_mps = 0.0
+                self.yaw_rate_radps = 0.0
+                return ControllerCommand(0.0, 0.0, 'lead_vehicle')
         if self.speed_mps < speed_limit:
             self.speed_mps = min(
                 speed_limit,
@@ -212,6 +235,9 @@ class LaneController(Node):
         self.declare_parameter('long_loss_s', 0.5)
         self.declare_parameter('recovery_speed_mps', 0.8)
         self.declare_parameter('recovery_hold_s', 1.0)
+        self.declare_parameter('lead_follow_gap_m', 6.0)
+        self.declare_parameter('lead_speed_gain', 0.8)
+        self.declare_parameter('lead_timeout_s', 0.5)
         self.declare_parameter('max_lane_age_s', 0.3)
         self.declare_parameter('max_odom_age_s', 0.3)
         self.declare_parameter('command_rate_hz', 20.0)
@@ -253,12 +279,16 @@ class LaneController(Node):
         self.follower = LaneFollower(self.config)
         self.estimate = None
         self.odometry = None
+        self.lead_distance = None
+        self.lead_stamp_s = None
         self.last_status = ''
         self.publisher = self.create_publisher(Twist, '/car/cmd_vel', 10)
         self.create_subscription(
             LaneEstimate, '/car/lane_estimate', self._on_estimate, 10)
         self.create_subscription(
             Odometry, '/car/odometry', self._on_odometry, 10)
+        self.create_subscription(
+            Float32, '/car/lead_distance', self._on_lead_distance, 10)
         self.timer = self.create_timer(
             1.0 / self.config.command_rate_hz, self._on_timer)
 
@@ -267,6 +297,10 @@ class LaneController(Node):
 
     def _on_odometry(self, message: Odometry) -> None:
         self.odometry = message
+
+    def _on_lead_distance(self, message: Float32) -> None:
+        self.lead_distance = message.data
+        self.lead_stamp_s = self.get_clock().now().nanoseconds * 1e-9
 
     def _on_timer(self) -> None:
         now_s = self.get_clock().now().nanoseconds * 1e-9
@@ -290,9 +324,13 @@ class LaneController(Node):
                 self.odometry.header.stamp.sec +
                 self.odometry.header.stamp.nanosec * 1e-9)
 
+        lead_age_s = None
+        if self.lead_stamp_s is not None:
+            lead_age_s = now_s - self.lead_stamp_s
         command = self.follower.update(
             now_s, estimate_present, estimate_valid, estimate_stamp_s,
-            target_x_m, target_y_m, odom_present, odom_stamp_s)
+            target_x_m, target_y_m, odom_present, odom_stamp_s,
+            self.lead_distance, lead_age_s)
         message = Twist()
         message.linear.x = command.speed_mps
         message.angular.z = command.yaw_rate_radps

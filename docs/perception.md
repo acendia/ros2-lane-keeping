@@ -102,6 +102,21 @@ to 0.25 s. The message keeps its original header stamp, so the controller still
 stops once the estimate is older than 0.3 s. The evaluator counts only fresh
 valid messages, not held ones.
 
+## Lead-vehicle detector
+
+A separate node, `lead_detector`, finds the red lead vehicle in the camera
+image. It keeps red-orange pixels (`H` 0–25 or 160–180, `S ≥ 120`, `V ≥ 80`),
+applies a 3 × 3 opening, and takes the largest component with at least 40
+pixels. It estimates distance from the apparent width:
+
+```text
+distance = fx · 1.6 m / width_px
+```
+
+`fx` is 320 px, and the accepted range is 1–40 m. It publishes
+`/car/lead_distance` as `std_msgs/Float32`. The detector assumes a red lead
+vehicle of known width, viewed from behind, with no occlusion.
+
 ## Saved frame tests
 
 The test frames are in [`tests/frames/`](../tests/frames/). They were captured
@@ -122,7 +137,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The full test suite has 78 tests.
+stale timestamps. The full test suite has 83 tests.
 
 ### Dashed and worn frames
 

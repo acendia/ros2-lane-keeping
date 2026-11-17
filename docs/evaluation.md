@@ -140,6 +140,26 @@ lines. The right lane centreline is 1.81 m right of the road centre and is
 one-lane times because the right lane is shorter, not because the car is faster.
 Raw results are in [`results-two-lane/`](../results-two-lane/).
 
+## Lead-vehicle check
+
+The two-lane lead world places a static red vehicle in the right lane at world
+`x = 8 m`. The ego car starts at `x = -10 m`. The lead detector runs from the
+camera, and the controller applies the follow-speed cap.
+
+| Check | Result |
+|---|---|
+| Lead detected by camera | yes |
+| Initial detected distance | 8.00 m |
+| Stopped detected distance | 5.953 m |
+| Final speed | 0.0 m/s |
+| Controller state | `lead_vehicle` |
+| Stopped at sim time | 11.4 s |
+| Collision | no |
+
+**Lead-vehicle stop check: PASS.** The camera estimate is about 6 m at the
+stop, and the car holds zero speed. This is a static lead check, not moving
+traffic. The result is in [`results-lead/`](../results-lead/).
+
 ## Dashed and worn track
 
 Track version 2 keeps the same oval, start poses, controller, and evaluator. It

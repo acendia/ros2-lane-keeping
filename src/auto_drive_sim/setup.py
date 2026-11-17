@@ -49,6 +49,7 @@ setup(
             'evaluator = auto_drive_sim.evaluator:main',
             'lane_controller = auto_drive_sim.lane_controller:main',
             'lane_perception = auto_drive_sim.lane_perception:main',
+            'lead_detector = auto_drive_sim.lead_detector:main',
             'teleop = auto_drive_sim.teleop:main',
         ],
     },

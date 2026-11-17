@@ -176,6 +176,10 @@ All three scenarios pass: 83.62 s, 83.64 s, and 83.62 s, with p95 errors of
 0.269 m, 0.270 m, and 0.270 m. There are no crossings and no stops. Results are
 in [`results-two-lane/`](../results-two-lane/).
 
+`car_world_two_lane_lead.sdf` adds a static red lead vehicle at world
+`x = 8 m` in the right lane. With `lead_detector:=true`, the ego car approaches
+and stops about 6 m behind it. See [`evaluation.md`](evaluation.md).
+
 ## Shadow test world
 
 `car_world_lighting.sdf` keeps the dashed and worn road but lowers the ambient

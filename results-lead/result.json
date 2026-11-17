@@ -1,0 +1,12 @@
+{
+  "check": "lead_stop",
+  "environment": "Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, Gazebo Sim 8.15.0. Two-lane right lane, static lead vehicle at x = 8 m.",
+  "lead_rear_x_m": 6.5,
+  "ego_start_x_m": -10.0,
+  "ego_final_x_m": -0.899,
+  "camera_lead_distance_m": 5.953,
+  "final_speed_mps": 0.0,
+  "controller_state": "lead_vehicle",
+  "stopped_sim_s": 11.4,
+  "passed": true
+}
