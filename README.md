@@ -81,11 +81,12 @@ rightmost boundary lines. All three scenarios pass: 83.62 s (center), 83.64 s
 There were no boundary crossings and no stops. The right lane is 122.887 m
 long. Raw results are in [`results-two-lane/`](results-two-lane/).
 
-A lead-vehicle check is also in place. A static red lead vehicle sits in the
-right lane, and a camera detector publishes `/car/lead_distance`. The ego car
-approaches it and stops at 5.95 m camera distance with zero speed, controller
-state `lead_vehicle`, and no collision. The check is in
-[`results-lead/`](results-lead/).
+A lead-vehicle check is also in place. A camera detector publishes
+`/car/lead_distance` from the red lead vehicle. In the static case the ego car
+stops at 5.98 m camera distance with zero speed and controller state
+`lead_vehicle`. In the moving case the lead drives the right lane at 1.0 m/s
+and the ego follows at a sampled gap of 7.1–13.0 m for 55 s with no collision.
+The checks are in [`results-lead/`](results-lead/).
 
 Raw Docker results are in [`results/`](results/). The method and tuning record
 are in [`docs/evaluation.md`](docs/evaluation.md).
@@ -101,8 +102,8 @@ are in [`docs/evaluation.md`](docs/evaluation.md).
   It applies pure pursuit, a speed ramp, a curvature-based speed limit,
   steering and yaw limits, and a yaw smoother. It stops on an invalid, missing,
   or stale estimate, and at the lead-vehicle follow gap.
-- **Lead detector** uses only the camera. It finds the red lead vehicle and
-  estimates distance from its apparent width.
+- **Lead detector** uses only the camera. It finds red lead pixels, projects
+  them to the ground, and takes the near edge as the distance.
 - **Evaluator** is a separate process. It reads Gazebo model pose and the
   generated centerline for scoring. Neither perception nor control can see
   those inputs.
@@ -248,9 +249,9 @@ rename. The project name is ros2-lane-keeping.
 
 ## Next
 
-Add a moving lead vehicle and following behavior, then lane choice. After that,
-add intersections and a route goal. A learned detector comes only after there
-is a dataset and a fixed evaluation protocol.
+Add lane choice and lane changes, then intersections and a route goal. After
+that, add more traffic and right-of-way. A learned detector comes only after
+there is a dataset and a fixed evaluation protocol.
 
 ## License
 

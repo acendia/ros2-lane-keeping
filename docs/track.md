@@ -178,7 +178,11 @@ in [`results-two-lane/`](../results-two-lane/).
 
 `car_world_two_lane_lead.sdf` adds a static red lead vehicle at world
 `x = 8 m` in the right lane. With `lead_detector:=true`, the ego car approaches
-and stops about 6 m behind it. See [`evaluation.md`](evaluation.md).
+and stops about 6 m behind it.
+
+`car_world_two_lane_moving_lead.sdf` uses the red `lead_car` model at
+`x = 5 m`. With `lead_driver:=true`, the lead follows the right-lane centerline
+at 1.0 m/s and the ego follows it. See [`evaluation.md`](evaluation.md).
 
 ## Shadow test world
 

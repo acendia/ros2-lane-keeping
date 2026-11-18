@@ -1,0 +1,14 @@
+{
+  "check": "moving_lead_follow",
+  "environment": "Docker, Ubuntu 24.04.5 arm64, ROS 2 Jazzy, Gazebo Sim 8.15.0. Two-lane right lane, lead speed 1.0 m/s.",
+  "duration_s": 55.0,
+  "lead_speed_mps": 1.0,
+  "sampled_min_gap_m": 7.12,
+  "sampled_max_gap_m": 12.96,
+  "final_gap_m": 8.27,
+  "final_ego_speed_mps": 1.44,
+  "collision": false,
+  "lead_reached_bottom_straight": true,
+  "passed": true,
+  "note": "Gaps sampled every 5 s from the live probe."
+}

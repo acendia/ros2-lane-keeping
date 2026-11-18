@@ -35,6 +35,9 @@ setup(
          glob('models/road_two_lane/meshes/*')),
         (os.path.join('share', package_name, 'models', 'car'),
          [path for path in glob('models/car/*') if os.path.isfile(path)]),
+        (os.path.join('share', package_name, 'models', 'lead_car'),
+         [path for path in glob('models/lead_car/*')
+          if os.path.isfile(path)]),
         (os.path.join('share', package_name, 'worlds'), glob('worlds/*')),
     ],
     install_requires=['setuptools'],
@@ -50,6 +53,7 @@ setup(
             'lane_controller = auto_drive_sim.lane_controller:main',
             'lane_perception = auto_drive_sim.lane_perception:main',
             'lead_detector = auto_drive_sim.lead_detector:main',
+            'lead_driver = auto_drive_sim.lead_driver:main',
             'teleop = auto_drive_sim.teleop:main',
         ],
     },

@@ -6,6 +6,7 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.actions import ExecuteProcess
+from launch.actions import GroupAction
 from launch.actions import OpaqueFunction
 from launch.actions import SetEnvironmentVariable
 from launch.conditions import IfCondition
@@ -42,6 +43,7 @@ def generate_launch_description():
     """Build the demo launch description."""
     share = get_package_share_directory('auto_drive_sim')
     bridge_config = os.path.join(share, 'config', 'bridge.yaml')
+    lead_bridge_config = os.path.join(share, 'config', 'lead_bridge.yaml')
 
     return LaunchDescription([
         DeclareLaunchArgument(
@@ -79,10 +81,34 @@ def generate_launch_description():
             default_value='false',
             description='Start the camera-based lead-vehicle detector.',
         ),
+        DeclareLaunchArgument(
+            'lead_driver',
+            default_value='false',
+            description='Start the moving lead-car driver and bridge.',
+        ),
         OpaqueFunction(function=_start_gazebo),
         RosGzBridge(
             bridge_name='car_bridge',
             config_file=bridge_config,
+        ),
+        GroupAction(
+            condition=IfCondition(LaunchConfiguration('lead_driver')),
+            actions=[
+                RosGzBridge(
+                    bridge_name='lead_bridge',
+                    config_file=lead_bridge_config,
+                ),
+                Node(
+                    package='auto_drive_sim',
+                    executable='lead_driver',
+                    output='screen',
+                    parameters=[{
+                        'use_sim_time': True,
+                        'start_x': 5.0,
+                        'start_y': 13.19,
+                    }],
+                ),
+            ],
         ),
         Node(
             package='auto_drive_sim',

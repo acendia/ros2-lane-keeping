@@ -105,17 +105,16 @@ valid messages, not held ones.
 ## Lead-vehicle detector
 
 A separate node, `lead_detector`, finds the red lead vehicle in the camera
-image. It keeps red-orange pixels (`H` 0–25 or 160–180, `S ≥ 120`, `V ≥ 80`),
-applies a 3 × 3 opening, and takes the largest component with at least 40
-pixels. It estimates distance from the apparent width:
+image. It keeps red-orange pixels (`H` 0–25 or 160–180, `S ≥ 120`, `V ≥ 80`)
+and applies a 3 × 3 opening. It projects the red pixels to the ground plane,
+keeps points from 1 to 40 m forward and within ±6 m lateral, and requires at
+least 10 points. The distance is the 5th percentile of the forward coordinate,
+which is the near edge of the lead vehicle. The lead car has a low red rear
+skirt so that edge sits at road level. It publishes `/car/lead_distance` as
+`std_msgs/Float32`.
 
-```text
-distance = fx · 1.6 m / width_px
-```
-
-`fx` is 320 px, and the accepted range is 1–40 m. It publishes
-`/car/lead_distance` as `std_msgs/Float32`. The detector assumes a red lead
-vehicle of known width, viewed from behind, with no occlusion.
+The detector assumes a red lead vehicle and a flat road. It does not handle
+occlusion or general obstacles.
 
 ## Saved frame tests
 

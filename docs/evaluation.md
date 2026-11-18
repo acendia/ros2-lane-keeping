@@ -150,15 +150,31 @@ camera, and the controller applies the follow-speed cap.
 |---|---|
 | Lead detected by camera | yes |
 | Initial detected distance | 8.00 m |
-| Stopped detected distance | 5.953 m |
+| Stopped detected distance | 5.978 m |
 | Final speed | 0.0 m/s |
 | Controller state | `lead_vehicle` |
-| Stopped at sim time | 11.4 s |
+| Checked for | 25 s |
 | Collision | no |
 
 **Lead-vehicle stop check: PASS.** The camera estimate is about 6 m at the
-stop, and the car holds zero speed. This is a static lead check, not moving
-traffic. The result is in [`results-lead/`](../results-lead/).
+stop, and the car holds zero speed.
+
+For the moving case, the lead car follows the right-lane centerline at 1.0 m/s
+using ground truth. The ego uses only camera lane perception and the lead
+detector.
+
+| Check | Result |
+|---|---|
+| Lead speed | 1.0 m/s |
+| Sampled gap range | 7.12–12.96 m |
+| Final gap | 8.27 m |
+| Final ego speed | 1.44 m/s |
+| Collision | no |
+| Lead reached the bottom straight | yes |
+
+**Moving lead follow: PASS.** Gaps were sampled every 5 s over 55 s. The ego
+stayed behind the lead around the east curve. Results are in
+[`results-lead/`](../results-lead/).
 
 ## Dashed and worn track
 

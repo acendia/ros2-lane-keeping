@@ -10,14 +10,16 @@
 | Main bridge | Gazebo topics | `/car/camera/image_raw`, `/car/odometry`, `/clock` |
 | Lane perception | Camera images | `/car/lane_estimate`, `/car/debug_image` |
 | Lead detector (optional) | Camera images | `/car/lead_distance` |
+| Lead driver (optional) | Right-lane centerline, `/lead/odometry` | `/lead/cmd_vel` |
 | Lane controller | `LaneEstimate`, odometry, lead distance | `/car/cmd_vel` |
 | Evaluation bridge | Gazebo `pose/info` | `/evaluation/model_poses` |
 | Evaluator | Model pose, centerline, `LaneEstimate` | JSON, CSV, summary table |
 | Foxglove bridge (optional) | ROS topics | `ws://localhost:8765` |
 
 The launch file `demo.launch.py` starts the world, main bridge, perception,
-and controller. The lead detector is optional (`lead_detector:=true`). The
-evaluator and its bridge run only in the scenario runner.
+and controller. The lead detector is optional (`lead_detector:=true`). A moving
+lead also needs `lead_driver:=true` and its topic bridge. The evaluator and its
+bridge run only in the scenario runner.
 The Foxglove bridge is an optional read-only visualization path; perception and
 control do not use it. See [`interface.md`](interface.md).
 
@@ -81,4 +83,6 @@ The full parameter table and stop behavior are in [`control.md`](control.md).
 | `/car/debug_image` | `sensor_msgs/msg/Image` | Perception → viewer |
 | `/car/cmd_vel` | `geometry_msgs/msg/Twist` | Controller → Gazebo |
 | `/car/lead_distance` | `std_msgs/msg/Float32` | Lead detector → controller |
+| `/lead/cmd_vel` | `geometry_msgs/msg/Twist` | Lead driver → lead car |
+| `/lead/odometry` | `nav_msgs/msg/Odometry` | Lead car → lead driver |
 | `/evaluation/model_poses` | `tf2_msgs/msg/TFMessage` | Evaluation only |
