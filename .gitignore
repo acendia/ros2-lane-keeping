@@ -26,3 +26,7 @@ artifacts/
 
 # Video files are kept local unless explicitly requested.
 *.mp4
+
+/PLAN.md
+/PROGRESS.md
+/HANDOFF.md

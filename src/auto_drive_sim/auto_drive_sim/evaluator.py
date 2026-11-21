@@ -8,11 +8,10 @@ import time
 
 from ament_index_python.packages import get_package_share_directory
 from auto_drive_sim_interfaces.msg import LaneEstimate
-from geometry_msgs.msg import Twist
+from geometry_msgs.msg import Twist, PoseStamped
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from tf2_msgs.msg import TFMessage
 import yaml
 
 CSV_FIELDS = [
@@ -119,7 +118,6 @@ class Evaluator(Node):
         self.output_dir = Path(self.get_parameter('output_dir').value)
         self.timeout_s = self.get_parameter('timeout_s').value
 
-        self.car_index = None
         self.first_time = None
         self.motion_start_time = None
         self.last_time = None
@@ -141,7 +139,7 @@ class Evaluator(Node):
         self.wall_start = time.monotonic()
 
         self.create_subscription(
-            TFMessage, '/evaluation/model_poses', self._on_model_poses, 10)
+            PoseStamped, '/evaluation/ego_pose', self._on_model_poses, 10)
         self.create_subscription(
             LaneEstimate, '/car/lane_estimate', self._on_estimate, 10)
         self.create_subscription(
@@ -166,39 +164,16 @@ class Evaluator(Node):
             self.stop_times.append(round(now_s, 3))
         self.cmd_speed = speed
 
-    def _find_car_index(self, transforms: list):
-        best_index = None
-        best_distance = None
-        for index, transform in enumerate(transforms):
-            translation = transform.transform.translation
-            distance = (
-                (translation.x - self.start[0]) ** 2 +
-                (translation.y - self.start[1]) ** 2 +
-                (translation.z - self.start[2]) ** 2)
-            if best_distance is None or distance < best_distance:
-                best_index = index
-                best_distance = distance
-        if best_distance is None or best_distance > 1.0:
-            return None
-        return best_index
-
-    def _on_model_poses(self, message: TFMessage) -> None:
-        if self.done or not message.transforms:
+    def _on_model_poses(self, message: PoseStamped) -> None:
+        if self.done:
             return
-        if self.car_index is None:
-            self.car_index = self._find_car_index(message.transforms)
-            if self.car_index is None:
-                return
-            self.get_logger().info(
-                f'tracking transform index {self.car_index} as the car')
-
-        now_s = self.get_clock().now().nanoseconds * 1e-9
-        if now_s <= 0.0:
+        now_s = message.header.stamp.sec + message.header.stamp.nanosec * 1e-9
+        if now_s <= 0.0 or (self.last_time is not None and now_s <= self.last_time):
             return
-        pose = message.transforms[self.car_index].transform
-        x_m = pose.translation.x
-        y_m = pose.translation.y
-        yaw = yaw_from_quaternion(pose.rotation)
+        pose = message.pose
+        x_m = pose.position.x
+        y_m = pose.position.y
+        yaw = yaw_from_quaternion(pose.orientation)
         index = nearest_index(x_m, y_m, self.center_x, self.center_y)
         s_m = float(self.center_s[index])
         error = signed_lateral_error(

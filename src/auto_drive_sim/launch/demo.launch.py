@@ -144,6 +144,8 @@ def generate_launch_description():
             condition=IfCondition(LaunchConfiguration('controller')),
             parameters=[{
                 'use_sim_time': True,
+                'lead_enabled': ParameterValue(
+                    LaunchConfiguration('lead_detector'), value_type=bool),
                 'target_speed_mps': ParameterValue(
                     LaunchConfiguration('target_speed'), value_type=float),
             }],

@@ -1,5 +1,10 @@
 # Environment
 
+A fresh [macOS/VM audit](vm_audit.md) measured simulation-time frame gaps,
+compared shadows on/off with Docker, and found overlapping Lima mounts and an
+outdated guest checkout. The historical measurements below remain unchanged.
+Average FPS alone does not establish control readiness.
+
 **Status: DOCKER PASSES THE CAMERA GATE AND RELEASE TARGET. THE LIMA VM
 PRODUCES VALID CAMERA FRAMES BUT IS TOO SLOW FOR THE RELEASE TARGET.** The VM
 builds, passes the 50 tests present at that revision, and renders 640 × 360

@@ -299,3 +299,33 @@ def test_yaw_smoothing():
     for step in range(2, 60):
         first = _update(follower, step * 0.1, target=(5.4, 1.0))
     assert first.yaw_rate_radps == pytest.approx(target_yaw, abs=0.005)
+
+
+def test_required_lead_stream_stops_on_loss_and_recovers_on_clear():
+    config = lane_controller.ControllerConfig(lead_enabled=True)
+    follower = lane_controller.LaneFollower(config)
+    missing = _update(follower, 0.0, lead_age=None)
+    assert missing.status == 'stale_lead_estimate'
+    stopped = _update(follower, 0.1, lead_distance=5.0)
+    assert stopped.status == 'lead_vehicle'
+    stale = _update(follower, 0.7, lead_distance=5.0, lead_age=0.6)
+    assert stale.speed_mps == 0.0
+    assert stale.status == 'stale_lead_estimate'
+    clear = _update(follower, 0.8, lead_distance=None, lead_age=0.0)
+    assert clear.status == 'driving'
+
+
+def test_ros_lead_parameter_overrides():
+    import rclpy
+    rclpy.init(args=['--ros-args', '-p', 'lead_enabled:=true',
+                    '-p', 'lead_follow_gap_m:=12.0',
+                    '-p', 'lead_speed_gain:=0.4', '-p', 'lead_timeout_s:=2.0'])
+    node = lane_controller.LaneController()
+    try:
+        assert node.config.lead_enabled is True
+        assert node.config.lead_follow_gap_m == 12.0
+        assert node.config.lead_speed_gain == 0.4
+        assert node.config.lead_timeout_s == 2.0
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()

@@ -45,3 +45,29 @@ def test_small_red_blob_ignored():
     cv2.rectangle(image, (320, 180), (322, 182), (0, 0, 255), -1)
     assert lead_detector.estimate_lead_distance(
         image, _GROUND, _CONFIG) is None
+
+
+def test_node_preserves_image_time_and_publishes_clear_and_invalid():
+    import rclpy
+    from cv_bridge import CvBridge
+    rclpy.init()
+    node = lead_detector.LeadDetector()
+    messages = []
+    class Capture:
+        def publish(self, message):
+            messages.append(message)
+    node.publisher = Capture()
+    try:
+        image = CvBridge().cv2_to_imgmsg(np.zeros((360, 640, 3), dtype=np.uint8), 'bgr8')
+        image.header.stamp = node.get_clock().now().to_msg()
+        node._on_image(image)
+        assert messages[-1].valid
+        assert not messages[-1].detected
+        assert messages[-1].header.stamp == image.header.stamp
+        image.header.stamp.sec -= 2
+        node._on_image(image)
+        assert not messages[-1].valid
+        assert messages[-1].header.stamp == image.header.stamp
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()

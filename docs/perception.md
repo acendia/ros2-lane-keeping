@@ -110,8 +110,8 @@ and applies a 3 × 3 opening. It projects the red pixels to the ground plane,
 keeps points from 1 to 40 m forward and within ±6 m lateral, and requires at
 least 10 points. The distance is the 5th percentile of the forward coordinate,
 which is the near edge of the lead vehicle. The lead car has a low red rear
-skirt so that edge sits at road level. It publishes `/car/lead_distance` as
-`std_msgs/Float32`.
+skirt so that edge sits at road level. It publishes `/car/lead_estimate` as
+`auto_drive_sim_interfaces/LeadEstimate`.
 
 The detector assumes a red lead vehicle and a flat road. It does not handle
 occlusion or general obstacles.
@@ -136,7 +136,7 @@ the opposite.
 
 Additional rejection tests cover a blank frame, a frame with one boundary
 removed, narrow and wide lane fits, swapped boundaries, sparse points, and
-stale timestamps. The full test suite has 83 tests.
+stale timestamps. The suite also checks node wiring and evaluation failure handling.
 
 ### Dashed and worn frames
 

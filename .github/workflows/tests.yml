@@ -1,0 +1,13 @@
+name: Tests
+on: [push, pull_request]
+jobs:
+  fast-tests:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build environment
+        run: docker build -t auto-drive-sim:test -f docker/Dockerfile .
+      - name: Build ROS packages and test
+        run: >-
+          docker run --rm -v "$PWD:/workspace" auto-drive-sim:test
+          bash -lc 'colcon build --symlink-install && source install/setup.bash && python3 -m pytest -q tests'

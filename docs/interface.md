@@ -31,7 +31,7 @@ The bridge advertises the live topics automatically.
 | Image | `/car/debug_image` | mask tint, boundary fits, target |
 | Plot | `/car/lane_estimate` | `lateral_error`, `confidence` |
 | Plot | `/car/cmd_vel` | `linear.x`, `angular.z` |
-| Plot | `/car/lead_distance` | lead-vehicle distance (when detector runs) |
+| Plot | `/car/lead_estimate` | lead-vehicle distance (when detector runs) |
 | Raw Messages | `/car/lane_estimate` | full estimate |
 
 A useful layout is the raw camera and debug overlay side by side, with the two

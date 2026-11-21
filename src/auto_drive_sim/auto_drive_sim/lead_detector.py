@@ -11,7 +11,7 @@ import rclpy
 from rclpy.node import Node
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
-from std_msgs.msg import Float32
+from auto_drive_sim_interfaces.msg import LeadEstimate
 
 
 @dataclass(frozen=True)
@@ -63,7 +63,7 @@ class LeadDetector(Node):
         self.ground = GroundPlane(CameraModel())
         self.bridge = CvBridge()
         self.publisher = self.create_publisher(
-            Float32, '/car/lead_distance', 10)
+            LeadEstimate, '/car/lead_estimate', 10)
         self.create_subscription(
             Image, '/car/camera/image_raw', self._on_image,
             qos_profile_sensor_data)
@@ -71,8 +71,14 @@ class LeadDetector(Node):
     def _on_image(self, message: Image) -> None:
         image = self.bridge.imgmsg_to_cv2(message, desired_encoding='bgr8')
         distance = estimate_lead_distance(image, self.ground, self.config)
-        if distance is not None:
-            self.publisher.publish(Float32(data=distance))
+        stamp_s = message.header.stamp.sec + message.header.stamp.nanosec * 1e-9
+        age = self.get_clock().now().nanoseconds * 1e-9 - stamp_s
+        estimate = LeadEstimate()
+        estimate.header = message.header
+        estimate.valid = 0.0 <= age <= 0.3
+        estimate.detected = distance is not None
+        estimate.distance = distance if distance is not None else 0.0
+        self.publisher.publish(estimate)
 
 
 def main() -> None:

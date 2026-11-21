@@ -1,6 +1,6 @@
-# Evaluation-only bridge. The controller and perception nodes do not use it.
-- ros_topic_name: /evaluation/model_poses
-  gz_topic_name: /world/car_world/pose/info
-  ros_type_name: tf2_msgs/msg/TFMessage
-  gz_type_name: gz.msgs.Pose_V
+# Evaluation only: this topic contains the ego model pose exclusively.
+- ros_topic_name: /evaluation/ego_pose
+  gz_topic_name: /model/car/pose
+  ros_type_name: geometry_msgs/msg/PoseStamped
+  gz_type_name: gz.msgs.Pose
   direction: GZ_TO_ROS

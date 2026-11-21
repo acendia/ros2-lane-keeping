@@ -1,0 +1,8 @@
+{
+  "check": "stamped_lead_static_stop",
+  "simulated_duration_s": 25.013,
+  "distance_m": 5.977842807769775,
+  "command_speed_mps": 0.0,
+  "passed": true,
+  "note": "Full demo launch, two-lane static lead world, rightmost strategy; not a continuous collision or moving-lead evaluation."
+}

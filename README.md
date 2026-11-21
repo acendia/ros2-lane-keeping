@@ -11,6 +11,13 @@ lane using only its forward camera.
 
 ## Results
 
+Maintenance validation: [fresh baseline results](results-review/summary.md) and
+[validation notes](docs/review_validation.md). All three laps completed with no
+boundary crossings. The records include the dirty working-tree provenance.
+
+The tables below record earlier runs. Current changes require a new baseline
+evaluation; they do not refresh the historical variant claims.
+
 Release target: all three starting positions complete a lap, no part of the
 car footprint crosses a lane boundary, and the 95th-percentile absolute lateral
 error stays below 0.35 m.
@@ -21,7 +28,7 @@ error stays below 0.35 m.
 | left +0.3 m | yes | 88.37 s | 0.249 m | 0.300 m | no | 100% | 0 |
 | right −0.3 m | yes | 88.35 s | 0.262 m | 0.300 m | no | 100% | 0 |
 
-**Docker is the supported release environment. Release target: PASS.**
+**Docker is the supported release environment. The table records a historical passing run.**
 
 - Tested in Docker on macOS arm64.
 - Ubuntu 24.04.5 arm64.
@@ -82,7 +89,7 @@ There were no boundary crossings and no stops. The right lane is 122.887 m
 long. Raw results are in [`results-two-lane/`](results-two-lane/).
 
 A lead-vehicle check is also in place. A camera detector publishes
-`/car/lead_distance` from the red lead vehicle. In the static case the ego car
+`/car/lead_estimate` from the red lead vehicle. In the static case the ego car
 stops at 5.98 m camera distance with zero speed and controller state
 `lead_vehicle`. In the moving case the lead drives the right lane at 1.0 m/s
 and the ego follows at a sampled gap of 7.1–13.0 m for 55 s with no collision.
@@ -98,7 +105,7 @@ are in [`docs/evaluation.md`](docs/evaluation.md).
 - **Perception** uses only `/car/camera/image_raw`. It projects bright marking
   pixels onto the ground plane, fits the two white boundaries, and publishes a
   lane center and a 4 m camera lookahead target.
-- **Controller** uses only `LaneEstimate`, odometry, and `/car/lead_distance`.
+- **Controller** uses only `LaneEstimate`, odometry, and `/car/lead_estimate`.
   It applies pure pursuit, a speed ramp, a curvature-based speed limit,
   steering and yaw limits, and a yaw smoother. It stops on an invalid, missing,
   or stale estimate, and at the lead-vehicle follow gap.
@@ -191,14 +198,14 @@ Fast tests:
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
 ```
 
-The suite has 83 tests: track geometry, car and bridge limits, perception
+The fast suite covers: track geometry, car and bridge limits, perception
 frames and rejection cases, pure-pursuit behavior, and evaluator geometry.
 
 Run the three release scenarios:
 
 ```bash
 ./docker/run.sh bash -lc 'tools/run_scenarios.sh'
-cat results/summary.md
+# The runner prints the fresh run directory; open its summary.md.
 ```
 
 Each scenario takes a few minutes because it runs one simulated lap.
@@ -243,7 +250,7 @@ rename. The project name is ros2-lane-keeping.
   lane in one run.
 - The release speed is constant at 1.5 m/s. The optional 2.0 m/s profile adds
   the curve speed limit and is validated on the solid track only.
-- The controller stops on any perception gap instead of coasting through it.
+- Perception holds an estimate for up to 0.25 s; the 0.3 s stale limit still applies.
 - There is no traffic, weather, occlusion, or obstacle handling.
 - Meeting the target on this track is not a claim of road-ready autonomy.
 

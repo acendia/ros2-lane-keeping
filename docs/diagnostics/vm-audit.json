@@ -1,0 +1,79 @@
+{
+  "date": "2026-11-22",
+  "sample_wall_seconds": 20,
+  "host_cpu_count": 8,
+  "host_performance_cpu_count": 6,
+  "host_ram_gib": 32,
+  "lima_vcpus": 8,
+  "lima_ram_gib": 12,
+  "docker_vcpus": 8,
+  "docker_ram_bytes": 8218316800,
+  "lima_restored_to": "Stopped",
+  "samples": {
+    "lima_shadows": {
+      "frames": 166,
+      "wall_hz": 8.53173019636849,
+      "sim_hz": 8.89679715302491,
+      "observed_rtf": 0.9589664740718186,
+      "duplicate_stamps": 0,
+      "wall_gap_max": 0.418895844000005,
+      "sim_gap_max": 0.3960000000000008,
+      "sim_gap_p95": 0.26399999999999935,
+      "sim_gaps_over_0_3": 6,
+      "arrival_age_p95": 0.012000000000001787,
+      "arrival_age_max": 0.021000000000000796
+    },
+    "lima_no_shadows": {
+      "frames": 262,
+      "wall_hz": 13.381372256707202,
+      "sim_hz": 13.58950328022493,
+      "observed_rtf": 0.9846844274418334,
+      "duplicate_stamps": 0,
+      "wall_gap_max": 0.2050229369999954,
+      "sim_gap_max": 0.19800000000000217,
+      "sim_gap_p95": 0.13199999999999967,
+      "sim_gaps_over_0_3": 0,
+      "arrival_age_p95": 0.0070000000000014495,
+      "arrival_age_max": 0.01699999999999946
+    },
+    "lima_half_speed_shadows": {
+      "frames": 80,
+      "wall_hz": 3.9976699017255743,
+      "sim_hz": 8.087633087633089,
+      "observed_rtf": 0.4942941721526001,
+      "duplicate_stamps": 0,
+      "wall_gap_max": 0.8827149199999837,
+      "sim_gap_max": 0.395999999999999,
+      "sim_gap_p95": 0.26400000000000035,
+      "sim_gaps_over_0_3": 2,
+      "arrival_age_p95": 0.0070000000000014495,
+      "arrival_age_max": 0.0070000000000014495
+    },
+    "docker_shadows": {
+      "frames": 279,
+      "wall_hz": 13.969670611372228,
+      "sim_hz": 15.09720864559574,
+      "observed_rtf": 0.9253148008554253,
+      "duplicate_stamps": 0,
+      "wall_gap_max": 0.13903525000205263,
+      "sim_gap_max": 0.13199999999999967,
+      "sim_gap_p95": 0.0660000000000025,
+      "sim_gaps_over_0_3": 0,
+      "arrival_age_p95": 0.01500000000000017,
+      "arrival_age_max": 0.018000000000000682
+    },
+    "docker_no_shadows": {
+      "frames": 283,
+      "wall_hz": 14.225443510127187,
+      "sim_hz": 15.097976228718277,
+      "observed_rtf": 0.9422086307877858,
+      "duplicate_stamps": 0,
+      "wall_gap_max": 0.17310874996474013,
+      "sim_gap_max": 0.13199999999999967,
+      "sim_gap_p95": 0.0660000000000025,
+      "sim_gaps_over_0_3": 0,
+      "arrival_age_p95": 0.011000000000001009,
+      "arrival_age_max": 0.015000000000004121
+    }
+  }
+}

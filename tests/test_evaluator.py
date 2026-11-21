@@ -72,3 +72,26 @@ def test_progress_straight():
     """Normal forward progress must add the sample delta."""
     progress = evaluator.advance_progress(10.0, 10.5, 134.0, 10.0)
     assert progress == pytest.approx(10.5)
+
+
+def test_dedicated_pose_uses_source_time_and_rejects_replays():
+    import rclpy
+    from geometry_msgs.msg import PoseStamped
+    rclpy.init()
+    node = evaluator.Evaluator()
+    try:
+        pose = PoseStamped()
+        pose.header.stamp.sec = 1
+        pose.pose.position.x = -10.0
+        pose.pose.position.y = 15.0
+        pose.pose.orientation.w = 1.0
+        node._on_model_poses(pose)
+        assert node.last_time == 1.0
+        assert len(node.samples) == 1
+        node._on_model_poses(pose)
+        pose.header.stamp.sec = 0
+        node._on_model_poses(pose)
+        assert len(node.samples) == 1
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()

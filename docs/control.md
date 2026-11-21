@@ -28,7 +28,7 @@ are left turns. The command is bounded before it reaches the Ackermann plugin.
 
 The perception lookahead target is 4 m ahead of the camera. In vehicle
 coordinates that is `x = 5.4 m`. `lookahead_gain` scales that point for tuning;
-the default is `1.0`.
+the default is `1.2`.
 
 ## Speed and smoothing
 
@@ -67,11 +67,11 @@ On the 15 m oval curves, `v_curve` is 1.5 m/s. At the release target of
 1.5 m/s, the limiter does not change the release results. At an optional
 2.0 m/s target, the car runs 2.0 m/s on the straights and about 1.5 m/s in the
 curves. That profile completed all three solid-track scenarios at 81.00 s,
-84.44 s, and 82.66 s.
+89.40 s, and 87.34 s.
 
 ## Lead vehicle
 
-The controller subscribes to `/car/lead_distance` (`std_msgs/Float32`). If the
+The controller subscribes to `/car/lead_estimate` (`auto_drive_sim_interfaces/LeadEstimate`). If the
 message is fresh (0.5 s), it applies a follow-speed cap:
 
 ```text
@@ -164,7 +164,7 @@ The controller tests cover:
 - recovery ramp,
 - yaw smoothing.
 
-The repository suite has 83 tests:
+Run the repository suite:
 
 ```bash
 ./docker/run.sh bash -lc 'python3 -m pytest -q tests'
@@ -203,8 +203,16 @@ controller state was `stale_lane_estimate`.
 
 - Pure pursuit uses the single camera lookahead point; it does not smooth a
   predicted path.
-- Speed is constant until a stop. There is no curve speed planning yet.
+- Curve speed planning uses the single lookahead curvature; it has no route preview.
 - The controller stops on perception loss and ramps on recovery; it does not
   coast through short gaps.
-- Centerline error is not yet the release metric. The 95th-percentile lap
-  target and footprint boundary checks belong to Milestone 5.
+- Lap evaluation checks the configured rectangular vehicle footprint on this oval.
+
+## Lead stream failure handling
+
+`lead_enabled` is false in the baseline demo and follows `lead_detector` in
+the launch file. When enabled, missing, invalid, or expired lead observations
+stop the car with `stale_lead_estimate`. Each camera frame publishes a stamped
+`LeadEstimate`, including a valid clear observation when no red vehicle is
+visible. Freshness uses the source image timestamp. This detector is limited
+to the known red vehicle; a clear observation does not prove general obstacle absence.

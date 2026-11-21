@@ -8,6 +8,7 @@ find_package(rosidl_default_generators REQUIRED)
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   "msg/LaneEstimate.msg"
+  "msg/LeadEstimate.msg"
   DEPENDENCIES std_msgs geometry_msgs
 )
 

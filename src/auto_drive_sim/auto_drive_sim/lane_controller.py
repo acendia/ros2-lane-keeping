@@ -9,7 +9,7 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import Float32
+from auto_drive_sim_interfaces.msg import LeadEstimate
 
 
 @dataclass(frozen=True)
@@ -29,6 +29,7 @@ class ControllerConfig:
     long_loss_s: float = 0.5
     recovery_speed_mps: float = 0.8
     recovery_hold_s: float = 1.0
+    lead_enabled: bool = False
     lead_follow_gap_m: float = 6.0
     lead_speed_gain: float = 0.8
     lead_timeout_s: float = 0.5
@@ -135,6 +136,9 @@ class LaneFollower:
         reason = self._stop_reason(
             now_s, estimate_present, estimate_valid, estimate_stamp_s,
             odom_present, odom_stamp_s)
+        if not reason and self.config.lead_enabled and (
+                lead_age_s is None or not 0.0 <= lead_age_s <= self.config.lead_timeout_s):
+            reason = 'stale_lead_estimate'
         if reason:
             if self.stop_started_s is None:
                 self.stop_started_s = now_s
@@ -235,6 +239,7 @@ class LaneController(Node):
         self.declare_parameter('long_loss_s', 0.5)
         self.declare_parameter('recovery_speed_mps', 0.8)
         self.declare_parameter('recovery_hold_s', 1.0)
+        self.declare_parameter('lead_enabled', False)
         self.declare_parameter('lead_follow_gap_m', 6.0)
         self.declare_parameter('lead_speed_gain', 0.8)
         self.declare_parameter('lead_timeout_s', 0.5)
@@ -243,6 +248,10 @@ class LaneController(Node):
         self.declare_parameter('command_rate_hz', 20.0)
 
         self.config = ControllerConfig(
+            lead_enabled=self.get_parameter('lead_enabled').value,
+            lead_follow_gap_m=self.get_parameter('lead_follow_gap_m').value,
+            lead_speed_gain=self.get_parameter('lead_speed_gain').value,
+            lead_timeout_s=self.get_parameter('lead_timeout_s').value,
             target_speed_mps=self.get_parameter(
                 'target_speed_mps').value,
             max_acceleration_mps2=self.get_parameter(
@@ -288,7 +297,7 @@ class LaneController(Node):
         self.create_subscription(
             Odometry, '/car/odometry', self._on_odometry, 10)
         self.create_subscription(
-            Float32, '/car/lead_distance', self._on_lead_distance, 10)
+            LeadEstimate, '/car/lead_estimate', self._on_lead_distance, 10)
         self.timer = self.create_timer(
             1.0 / self.config.command_rate_hz, self._on_timer)
 
@@ -298,9 +307,11 @@ class LaneController(Node):
     def _on_odometry(self, message: Odometry) -> None:
         self.odometry = message
 
-    def _on_lead_distance(self, message: Float32) -> None:
-        self.lead_distance = message.data
-        self.lead_stamp_s = self.get_clock().now().nanoseconds * 1e-9
+    def _on_lead_distance(self, message: LeadEstimate) -> None:
+        self.lead_distance = message.distance if message.detected else None
+        self.lead_stamp_s = (
+            message.header.stamp.sec + message.header.stamp.nanosec * 1e-9
+            if message.valid else None)
 
     def _on_timer(self) -> None:
         now_s = self.get_clock().now().nanoseconds * 1e-9

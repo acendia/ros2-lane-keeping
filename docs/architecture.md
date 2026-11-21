@@ -9,10 +9,10 @@
 | Gazebo world | World and car SDF | Camera images, odometry, model pose |
 | Main bridge | Gazebo topics | `/car/camera/image_raw`, `/car/odometry`, `/clock` |
 | Lane perception | Camera images | `/car/lane_estimate`, `/car/debug_image` |
-| Lead detector (optional) | Camera images | `/car/lead_distance` |
+| Lead detector (optional) | Camera images | `/car/lead_estimate` |
 | Lead driver (optional) | Right-lane centerline, `/lead/odometry` | `/lead/cmd_vel` |
 | Lane controller | `LaneEstimate`, odometry, lead distance | `/car/cmd_vel` |
-| Evaluation bridge | Gazebo `pose/info` | `/evaluation/model_poses` |
+| Evaluation bridge | Gazebo `pose/info` | `/evaluation/ego_pose` |
 | Evaluator | Model pose, centerline, `LaneEstimate` | JSON, CSV, summary table |
 | Foxglove bridge (optional) | ROS topics | `ws://localhost:8765` |
 
@@ -82,7 +82,7 @@ The full parameter table and stop behavior are in [`control.md`](control.md).
 | `/car/lane_estimate` | `auto_drive_sim_interfaces/msg/LaneEstimate` | Perception → controller |
 | `/car/debug_image` | `sensor_msgs/msg/Image` | Perception → viewer |
 | `/car/cmd_vel` | `geometry_msgs/msg/Twist` | Controller → Gazebo |
-| `/car/lead_distance` | `std_msgs/msg/Float32` | Lead detector → controller |
+| `/car/lead_estimate` | `auto_drive_sim_interfaces/msg/LeadEstimate` | Lead detector → controller |
 | `/lead/cmd_vel` | `geometry_msgs/msg/Twist` | Lead driver → lead car |
 | `/lead/odometry` | `nav_msgs/msg/Odometry` | Lead car → lead driver |
-| `/evaluation/model_poses` | `tf2_msgs/msg/TFMessage` | Evaluation only |
+| `/evaluation/ego_pose` | `tf2_msgs/msg/TFMessage` | Evaluation only |

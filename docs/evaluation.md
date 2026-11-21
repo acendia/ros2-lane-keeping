@@ -4,12 +4,16 @@ The release scenarios use Gazebo model pose and the generated centerline only
 inside the evaluator. The perception and controller nodes never subscribe to
 either.
 
-The raw results are in [`results/`](../results/). These results and the
-demo images were captured from commit `89de4eb` with a 1.5 m/s target and
-lookahead gain 1.2. The documentation commit that follows does not change
-runtime code. The runner writes one JSON
-result and one lateral-error CSV per scenario, plus
-[`results/summary.md`](../results/summary.md).
+The checked-in results below are historical snapshots. README lists their
+recorded revisions; the old JSON files do not embed provenance, so the exact
+revision cannot be established from those files alone. They are not a fresh
+validation of the current working tree.
+
+The runner now writes each invocation into a new directory under
+`artifacts/evaluations/` (or `RESULTS_DIR`). It prints the directory on success.
+`run_metadata.json` records commit, dirty status, source fingerprint, package
+versions, and requested profile. Each scenario contains JSON and CSV results.
+A failed evaluator exits the runner with failure and cannot reuse old results.
 
 ## Setup
 
@@ -41,7 +45,7 @@ All three start at `x = -10.0` with yaw `0.0`.
 
 The evaluator bridge is
 [`src/auto_drive_sim/config/eval_bridge.yaml`](../src/auto_drive_sim/config/eval_bridge.yaml).
-It maps `/world/car_world/pose/info` to `/evaluation/model_poses`. The normal
+It maps the ego-only `/model/car/pose` topic to `/evaluation/ego_pose`. The normal
 bridge used by perception and control does not include it.
 
 ## Metrics
@@ -62,7 +66,7 @@ bridge used by perception and control does not include it.
 - **Stop events**: command speed transitions from above 0.2 m/s to at most
   0.05 m/s after the car has moved.
 
-The evaluator uses simulated time. A slower renderer changes wall-clock
+The evaluator uses source pose timestamps in simulated time. A slower renderer changes wall-clock
 duration, not the metric timeline.
 
 ## Docker results
@@ -262,7 +266,7 @@ Docker at 13.9 Hz remains the only environment that completes all three laps.
 ```bash
 ./docker/run.sh bash -lc 'colcon build --symlink-install'
 ./docker/run.sh bash -lc 'tools/run_scenarios.sh'
-cat results/summary.md
+# The runner prints the fresh run directory; open its summary.md.
 ```
 
 Run one scenario:
