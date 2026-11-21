@@ -1,0 +1,23 @@
+{
+  "topic": "/camera_check/image",
+  "frames": 75,
+  "requested_duration_s": 5.0,
+  "width": 640,
+  "height": 360,
+  "mean_bgr": [
+    175.35,
+    165.91,
+    156.33
+  ],
+  "std_bgr": [
+    65.69,
+    51.56,
+    42.6
+  ],
+  "wall_span_s": 5.011,
+  "stamp_span_s": 4.933,
+  "wall_rate_hz": 14.77,
+  "stamp_rate_hz": 15.0,
+  "output": "results-native/camera/frame.png",
+  "valid": true
+}

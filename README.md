@@ -1,5 +1,9 @@
 # ros2-lane-keeping
 
+This experimental branch adds native macOS / Metal validation. See
+[the native setup and measured results](docs/native_macos.md). Docker remains
+the supported baseline while repeated native runs and optional variants are evaluated.
+
 A ROS 2 Jazzy and Gazebo Harmonic project where a small car follows a painted
 lane using only its forward camera.
 

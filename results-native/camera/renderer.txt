@@ -1,0 +1,8 @@
+00:54:50: Installing plugin: Metal RenderSystem
+00:54:50: Metal: Devices Detection Starts
+00:54:50: Metal: "Apple M1 Pro"
+00:54:50: Metal: Devices Detection Ends
+00:54:50: Metal: Devices Detection Starts
+00:54:50: Metal: "Apple M1 Pro"
+00:54:50: Metal: Devices Detection Ends
+00:54:50: Metal: Requested "(default)", selected "Apple M1 Pro (system default)"

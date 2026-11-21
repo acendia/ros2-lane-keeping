@@ -1,9 +1,12 @@
 """Failures must never be summarized using a previous run's passing files."""
 import os
+import sys
+import pytest
 from pathlib import Path
 import subprocess
 
 
+@pytest.mark.skipif(sys.platform == 'darwin', reason='Linux runner; native macOS uses native_check.py')
 def test_failed_evaluator_cannot_reuse_previous_result(tmp_path):
     repo = Path(__file__).resolve().parents[1]
     previous = tmp_path / 'results' / 'center'

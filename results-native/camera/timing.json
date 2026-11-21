@@ -1,0 +1,13 @@
+{
+  "frames": 900,
+  "requested_wall_duration_s": 60.0,
+  "wall_rate_hz": 14.990712917741762,
+  "sim_rate_hz": 14.99983314979811,
+  "observed_real_time_factor": 0.9993919777663346,
+  "max_sim_gap_s": 0.06700000000000728,
+  "gaps_over_0_3_s": 0,
+  "duplicate_or_reversed_stamps": 0,
+  "arrival_age_p95_s": 0.006000000000007333,
+  "arrival_age_max_s": 0.007000000000005002,
+  "timing_pass": true
+}

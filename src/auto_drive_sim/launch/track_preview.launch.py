@@ -1,6 +1,7 @@
 """Launch the generated oval world in Gazebo Harmonic."""
 
 import os
+import platform
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
@@ -25,7 +26,10 @@ def _start_gazebo(context):
     if gui:
         command = ['gz', 'sim', '-r', world]
     else:
-        command = ['gz', 'sim', '-s', '-r', '--headless-rendering', world]
+        command = ['gz', 'sim', '-s', '-r']
+        if platform.system() != 'Darwin':
+            command.append('--headless-rendering')
+        command.append(world)
 
     return [
         SetEnvironmentVariable('GZ_SIM_RESOURCE_PATH', resource_path),

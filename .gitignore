@@ -30,3 +30,7 @@ artifacts/
 /PLAN.md
 /PROGRESS.md
 /HANDOFF.md
+
+build-native/
+install-native/
+log-native/
