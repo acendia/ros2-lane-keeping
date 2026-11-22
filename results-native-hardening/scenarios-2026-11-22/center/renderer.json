@@ -1,0 +1,7 @@
+{
+  "backend": "Metal",
+  "device": "Apple M1 Pro (system default)",
+  "log_sha256": "94606f6b3ba517bd05864845be0129f00b933c279c88833490945bb92f03dc28",
+  "log_mtime_ns": 1795339080121806367,
+  "verified_open_by_run": true
+}

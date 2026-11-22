@@ -1,0 +1,31 @@
+{
+  "name": "camera-02",
+  "status": "passed",
+  "started_utc": "2026-11-22T09:14:20.592462+00:00",
+  "artifacts": "camera-02",
+  "configured_camera": {
+    "update_rate": "15",
+    "camera/image/width": "640",
+    "camera/image/height": "360",
+    "camera/horizontal_fov": "1.0472"
+  },
+  "readiness": {
+    "clock": 0.004,
+    "clock_advances": 3,
+    "image": 0.002,
+    "lane": 0.0,
+    "odom": 0.0,
+    "ready": true,
+    "startup_wall_s": 2.203716041985899
+  },
+  "renderer": {
+    "backend": "Metal",
+    "device": "Apple M1 Pro (system default)",
+    "log_sha256": "1ef986be5906f387e0e5eaa3886fc9cfb8f647d4bc35ab491c55e6b3d05a7581",
+    "log_mtime_ns": 1795338863043716459,
+    "verified_open_by_run": true
+  },
+  "world_sha256": "0b764debd9b87d23d4c8ebc5456d96060059a65dcfebb85b1ecccbc1fa517513",
+  "cleanup": "passed",
+  "wall_duration_s": 7.714892457937822
+}

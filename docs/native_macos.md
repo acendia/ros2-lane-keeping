@@ -111,6 +111,32 @@ did not interrupt any of the scored laps.
 This remains experimental. Repeat cold starts, longer runs, the dashed and
 shadow worlds, lead following, and the GUI before considering a merge to main.
 
+## Clean-revision validation — 2026-11-22
+
+The supervised checks below were collected from committed revision
+`148c58f0fed84a9655f4cad89262210f9fe2f51d`, with a clean working tree at the
+start of each run. They supersede the historical snapshot above as the
+reproducible baseline for this branch.
+
+Ten independent cold starts passed their readiness, image, Metal-device, and
+process-cleanup checks. The 60-second camera run collected 900 frames at
+14.996 Hz wall rate and 15.000 Hz simulation rate, with a 0.99975 observed
+real-time factor, a 0.067 s maximum simulation-time gap, and a 0.003 s p95
+arrival age.
+
+| Scenario | Lap time | p95 lateral error | Footprint crossing | Stops |
+|---|---:|---:|---|---:|
+| Center | 88.40 s | 0.2306 m | No | 0 |
+| Left +0.3 m | 88.40 s | 0.2311 m | No | 0 |
+| Right −0.3 m | 88.40 s | 0.2314 m | No | 0 |
+
+The published records include source hashes, effective settings, environment
+versions, input hashes, renderer selection, readiness acknowledgements, and
+per-step cleanup status:
+[`startup`](../results-native-hardening/startup-2026-11-22/),
+[`camera`](../results-native-hardening/camera-2026-11-22/), and
+[`scenarios`](../results-native-hardening/scenarios-2026-11-22/).
+
 ## Supervised validation (milestones 1–2)
 
 The runner checks the exact qualified bundle, native Python imports, and the

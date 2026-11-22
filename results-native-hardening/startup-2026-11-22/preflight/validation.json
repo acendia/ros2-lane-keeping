@@ -1,0 +1,36 @@
+{
+  "name": "preflight",
+  "status": "passed",
+  "started_utc": "2026-11-22T09:14:10.237607+00:00",
+  "artifacts": "preflight",
+  "ros_packages": {
+    "rclpy": "7.1.13",
+    "ros_gz_bridge": "1.0.25",
+    "cv_bridge": "4.1.0",
+    "gz_sim_vendor": "0.0.13",
+    "gz_rendering_vendor": "0.0.8",
+    "gz_transport_vendor": "0.0.9"
+  },
+  "ros_bundle_location": "/opt/homebrew/opt/ros2-jazzy",
+  "architecture": "arm64",
+  "platform": "macOS-26.6.2-arm64-arm-64bit",
+  "python": "3.11.9",
+  "python_executable": "/Library/Frameworks/Python.framework/Versions/3.11/bin/python3",
+  "ros_bundle_version": "26.11.20.9",
+  "gazebo": "Gazebo Sim, version 8.15.0\nCopyright (C) 2018 Open Source Robotics Foundation.\nReleased under the Apache 2.0 License.",
+  "python_packages": {
+    "numpy": "1.26.4",
+    "opencv-python": "4.11.0.86",
+    "PyYAML": "6.0.4",
+    "psutil": "7.2.2",
+    "cryptography": "50.0.2",
+    "pytest": "9.2.0"
+  },
+  "network": {
+    "GZ_IP": "127.0.0.1",
+    "RMW_IMPLEMENTATION": "rmw_cyclonedds_cpp",
+    "CYCLONEDDS_URI": "<CycloneDDS><Domain><General><Interfaces><NetworkInterface name=\"lo0\" multicast=\"true\"/></Interfaces></General><Discovery><ParticipantIndex>none</ParticipantIndex></Discovery></Domain></CycloneDDS>"
+  },
+  "cleanup": "passed",
+  "wall_duration_s": 2.163249332923442
+}
