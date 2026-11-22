@@ -81,6 +81,8 @@ class PerceptionConfig:
     local_contrast_min: int = 35
     local_value_min: int = 60
     marking_open_px: int = 3
+    horizontal_marking_window_px: int = 25
+    horizontal_marking_contrast_min: int = 20
     hold_last_valid_s: float = 0.25
     lane_strategy: str = 'single'
     max_image_age_s: float = 0.3
@@ -479,16 +481,29 @@ def _analyze_mask(mask: np.ndarray, ground: GroundPlane,
 
 def analyze_frame(image: np.ndarray, ground: GroundPlane,
                   config: PerceptionConfig) -> PerceptionResult:
-    """Try the lit threshold first, then the shadow fallback."""
+    """Try bright paint, local contrast, then horizontal marking contrast."""
     bright_mask = threshold_markings(image, config, use_local=False)
     result = _analyze_mask(bright_mask, ground, config)
     if result.valid:
         return result
 
     local_mask = threshold_markings(image, config, use_local=True)
-    if np.array_equal(local_mask, bright_mask):
-        return result
-    return _analyze_mask(local_mask, ground, config)
+    if not np.array_equal(local_mask, bright_mask):
+        result = _analyze_mask(local_mask, ground, config)
+        if result.valid:
+            return result
+
+    # Compare across each row so a horizontal shadow edge does not dominate
+    # the contrast of narrow paint stripes crossing it.
+    hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+    value = hsv[:, :, 2]
+    kernel = np.ones((1, config.horizontal_marking_window_px), dtype=np.uint8)
+    contrast = cv2.morphologyEx(value, cv2.MORPH_TOPHAT, kernel)
+    mask = ((contrast >= config.horizontal_marking_contrast_min) &
+            (hsv[:, :, 1] <= config.white_saturation_max) &
+            (value >= config.local_value_min)).astype(np.uint8) * 255
+    recovered = _analyze_mask(mask, ground, config)
+    return recovered if recovered.valid else result
 
 
 def make_debug_image(image: np.ndarray, result: PerceptionResult,

@@ -237,6 +237,31 @@ distinct depths. The final boundary validity checks still reject insufficient
 geometry. This removes the fit warnings in the replay but does not resolve
 the detection dropouts or establish an improvement in stop frequency.
 
+The detector now tries a horizontal morphological top-hat filter when the
+bright-paint and local-contrast masks both fail. The filter compares narrow
+bright markings with their surroundings across each image row. This reduces
+the influence of horizontal shadow edges. The fallback must pass the same
+two-boundary fit and geometry checks as the other masks.
+
+All 24 saved stop frames yielded a valid lane estimate in replay. The largest
+lookahead target error was 0.018 m against the simulated centerline, using the
+nearest ground-truth pose within 0.017 s of each frame. These frames guided
+the filter selection. The regression fixture is the centered run's first
+stop frame, captured at simulation time 16.267 s.
+
+In one native low-sun batch with the filter, all three laps completed without
+a footprint crossing. The earlier and new runs used the same scenario world
+and controller settings. Both were recorded from working trees.
+
+| Start | Commanded stops before → after | Valid perception before → after | p95 lateral error after |
+|---|---:|---:|---:|
+| Center | 8 → 1 | 96.26% → 99.64% | 0.2320 m |
+| Left | 9 → 0 | 96.87% → 99.85% | 0.2328 m |
+| Right | 7 → 0 | 96.60% → 99.85% | 0.2326 m |
+
+The remaining stop coincided with a sparse-boundary rejection. Low sun and
+worn markings remain a stress scenario pending repeated runs.
+
 Run the same stress world with the supervised native runner:
 
 ```bash

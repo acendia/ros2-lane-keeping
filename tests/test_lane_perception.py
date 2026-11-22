@@ -103,6 +103,15 @@ def test_labeled_frame(set_name, name):
     assert result.confidence > 0.6
 
 
+def test_low_sun_shadow_recovers_lane_target():
+    image = _labeled_frame('lighting', 'low_sun_stop')
+    result = lane_perception.analyze_frame(image, GROUND, CONFIG)
+    assert result.valid
+    # Ground-truth centerline in the vehicle frame at the 5.4 m lookahead.
+    assert result.target_y_m == pytest.approx(-0.396, abs=0.06)
+    assert result.lane_width_m == pytest.approx(3.88, abs=0.12)
+
+
 def test_rightmost_lane_selection():
     """Three solid lines must select the lane nearest the right edge."""
     image = np.full((360, 640, 3), 90, dtype=np.uint8)
