@@ -259,7 +259,43 @@ raised the static camera rate to 13.46 Hz, so software rendering is the
 bottleneck. These are partial-run p95 values, not completed-lap values. Raw
 results are in [`results-vm/`](../results-vm/).
 
-Docker at 13.9 Hz remains the only environment that completes all three laps.
+In this VM comparison, Docker at 13.9 Hz completed all three laps.
+
+## Native scenario validation
+
+On native macOS with Metal, nine laps passed on revision `ffae047`. The
+three starts in each batch completed without a footprint crossing or a
+commanded stop. The tighter oval was generated from
+[`track_tight_worn.yaml`](../src/auto_drive_sim/config/track_tight_worn.yaml).
+It has a 13 m curve radius, a 3.3 m lane, and worn dashes. Its offset starts
+begin 0.3 m from the centerline with a 0.08 rad heading toward it. The
+evaluator uses the centerline and lane width of the generated road.
+
+| Road and lighting | Laps | p95 lateral error, center / left / right (m) | Crossings | Commanded stops |
+|---|---:|---|---:|---:|
+| Tight worn oval, daylight | 3/3 | 0.2729 / 0.2731 / 0.2730 | 0 | 0 |
+| Original worn oval, low sun (repeat) | 3/3 | 0.2320 / 0.2326 / 0.2328 | 0 | 0 |
+| Tight worn oval, low sun | 3/3 | 0.2734 / 0.2739 / 0.2738 | 0 | 0 |
+
+These results cover two oval geometries. The original low-sun batch with
+the same perception code had one commanded stop. The marking-loss regression
+feeds blank images through the perception and controller callbacks with
+fresh odometry. It checks that a brief dropout keeps the last estimate's
+timestamp, sustained loss commands zero speed and yaw rate, and reacquisition
+resumes through the acceleration ramp. This test checks commands in isolation
+from vehicle dynamics.
+
+Run each batch from the repository root:
+
+```bash
+tools/native.sh python3 tools/native_check.py scenarios --tight-worn --require-clean
+tools/native.sh python3 tools/native_check.py scenarios --world car_world_lighting.sdf --require-clean
+tools/native.sh python3 tools/native_check.py scenarios --tight-worn --world car_world_lighting.sdf --require-clean
+```
+
+The runner records each scored lap, including laps that miss the criteria.
+Each output includes the generated world, track hashes when applicable, and
+the scored trajectory. Infrastructure failures still stop the batch.
 
 ## Run it
 
