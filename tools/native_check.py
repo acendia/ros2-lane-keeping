@@ -321,7 +321,7 @@ def intersection_step(processes, output, args, scenario):
             paint(f'sidewalk_{side}_{end}', x, y, 1.2, 11.4, '0.53 0.53 0.51', 0.06, 0.12)
         for index in range(12):
             paint(f'crosswalk_{side}_{index}', x, 11.65 + 0.60 * index,
-                  1.2, 0.24, '0.92 0.92 0.90')
+                  1.2, 0.24, '0.68 0.52 0.38')
     if traffic:
         scene.append(ET.fromstring('''
             <include><uri>model://lead_car</uri><name>lead_vehicle</name>
