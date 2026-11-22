@@ -118,17 +118,6 @@ docker/       Linux development environment
 docs/         Setup, design notes, and evaluation
 ```
 
-## Known limitations
-
-The car relies on painted boundaries. I’ve tested flat, controlled tracks with
-solid, dashed, and worn markings. The lead detector identifies the red vehicle
-in the simulation by color. Lane changes are requested on an empty straight.
-
-## Next
-
-I want to give the car a route goal and start with one intersection and a stop
-line. I’ll add a scored scenario before introducing crossing traffic.
-
 ## License
 
 [MIT](LICENSE).
