@@ -1,0 +1,12 @@
+{
+  "pass": true,
+  "source_lane": "rightmost",
+  "target_lane": "leftmost",
+  "samples": 561,
+  "duration_s": 28.0,
+  "divider_crossings": 1,
+  "outer_boundary_crossing": false,
+  "commanded_stops": 0,
+  "final_window_max_lateral_error_m": 0.009290245750715798,
+  "final_window_max_heading_error_rad": 0.006313734906369492
+}

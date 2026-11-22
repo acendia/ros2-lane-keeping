@@ -1,0 +1,9 @@
+{
+  "clock": 0.05,
+  "clock_advances": 43,
+  "image": 0.002,
+  "lane": 0.002,
+  "odom": 0.05,
+  "ready": true,
+  "startup_wall_s": 2.758554416941479
+}

@@ -3,7 +3,8 @@
 I started this project to see if a car in Gazebo could stay in a painted lane
 using a front-facing camera. It now follows straight and curved lanes, adjusts
 its speed for bends, and can follow a lead vehicle. I use ROS 2 Jazzy, Gazebo
-Harmonic, and Python.
+Harmonic, and Python. On an empty two-lane test road, it can also select a lane
+and make a requested lane change.
 
 ![Gazebo front-camera recording of the car slowing and stopping behind a stationary lead](docs/media/stationary_lead_stop.gif)
 
@@ -27,13 +28,17 @@ adding a contrast fallback to lane detection, stops on the original low-sun
 track went from 24 to 1 across three laps. The repeat above finished with zero
 stops. [Perception notes](docs/perception.md) · [Lane-keeping results](docs/evaluation.md#native-scenario-validation)
 
-I also automated three **longitudinal control** checks on the two-lane road:
+I also automated four **longitudinal control** checks on the two-lane road:
 
 - **Stationary lead.** The car stopped at a camera range of 5.98 m against a 6.0 m setpoint.
 - **Moving lead.** The car followed for 60 simulated seconds and held a camera range of 7.25–7.38 m over the final 10 seconds.
+- **Braking lead.** The lead slowed from 1.0 to 0.45 m/s and then stopped. The car settled at a camera range of 5.98 m.
 - **Detector outage.** The controller commanded zero speed 0.516 seconds after the last usable frame.
 
-[Lead-vehicle run records](results-native-lead/summary.md) · [Docker baseline](results/summary.md)
+Both scripted lane changes crossed the divider once with no stops or road-edge
+crossings. The car settled within 2.1 cm of the target lane center.
+
+[Lane maneuver results](results-native-maneuvers/lanes/summary.md) · [Lead-vehicle results](results-native-maneuvers/lead/summary.md) · [Docker baseline](results/summary.md)
 
 ## How it works
 
@@ -92,10 +97,11 @@ python3 -m pytest -q tests
 tools/run_scenarios.sh
 ```
 
-On a configured Apple Silicon Mac, run the tight worn track and the lead-vehicle scenarios:
+On a configured Apple Silicon Mac:
 
 ```bash
 tools/native.sh python3 tools/native_check.py scenarios --tight-worn
+tools/native.sh python3 tools/native_check.py lanes
 tools/native.sh python3 tools/native_check.py lead
 ```
 
@@ -116,12 +122,12 @@ docs/         Setup, design notes, and evaluation
 
 The car relies on painted boundaries. I’ve tested flat, controlled tracks with
 solid, dashed, and worn markings. The lead detector identifies the red vehicle
-in the simulation by color, and the moving-lead test uses one speed.
+in the simulation by color. Lane changes are requested on an empty straight.
 
 ## Next
 
-I want to test lead vehicles that change speed or brake, then add lane selection
-and lane changes. I’ll add a scored scenario for each behavior.
+I want to give the car a route goal and start with one intersection and a stop
+line. I’ll add a scored scenario before introducing crossing traffic.
 
 ## License
 

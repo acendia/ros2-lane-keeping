@@ -206,6 +206,42 @@ The [native run records](../results-native-lead/summary.md) include the
 scenario criteria, measured trajectories, stamped detector observations,
 commanded and actual speed, and source revision.
 
+## Lead braking and lane changes
+
+On revision `619b2f4`, the braking lead on a straight road went from
+1.00 to 0.45 m/s and then stopped. The ego car reached the follow-gap state
+with a final camera range of 5.98 m and zero measured speed. The minimum
+sampled footprint separation bound was 3.85 m. The stationary, constant-speed,
+and detector-outage checks also passed on the same revision.
+
+The first braking trial used the oval. The ego car lost the lane near the
+curve and stopped at a camera range of 6.25 m. It stayed clear of the lead,
+but the stop came from lane loss, so the trial failed the braking criterion.
+
+The lane scenarios use an empty straight and a requested target lane. The
+vehicle uses camera geometry to blend steering targets between the two lane
+centers. It needs three visible boundary fits during the maneuver.
+
+| Scenario | Divider crossings | Commanded stops | Max lateral error in final 3 s |
+|---|---:|---:|---:|
+| Select and hold left lane | 0 | 0 | < 0.001 m |
+| Change from right to left | 1 | 0 | 0.009 m |
+| Change from left to right | 1 | 0 | 0.021 m |
+
+All three stayed inside the outer road boundaries. The divider count measures
+crossings by the vehicle center. Road-edge checks use all four footprint
+corners. Each run scores 28 seconds of motion and checks the final three
+seconds for alignment with the requested lane. The lane changes have no
+traffic-clearance check.
+
+```bash
+tools/native.sh python3 tools/native_check.py lanes --require-clean
+tools/native.sh python3 tools/native_check.py lead --require-clean
+```
+
+[Lane maneuver records](../results-native-maneuvers/lanes/summary.md) ·
+[Lead-vehicle records](../results-native-maneuvers/lead/summary.md)
+
 ## Dashed and worn track
 
 Track version 2 keeps the same oval, start poses, controller, and evaluator. It

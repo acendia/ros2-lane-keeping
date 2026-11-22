@@ -1,0 +1,45 @@
+{
+  "name": "moving",
+  "status": "passed",
+  "started_utc": "2026-11-22T12:22:15.322988+00:00",
+  "artifacts": "moving",
+  "readiness": {
+    "clock": 0.05,
+    "clock_advances": 49,
+    "image": 0.002,
+    "lane": 0.002,
+    "odom": 0.05,
+    "ready": true,
+    "startup_wall_s": 2.82296425011009
+  },
+  "renderer": {
+    "backend": "Metal",
+    "device": "Apple M1 Pro (system default)",
+    "log_sha256": "cd55f22a17077cba302aeb8885131836986f27c40939f647ba0c1482a6ce018a",
+    "log_mtime_ns": 1795350138632916172,
+    "verified_open_by_run": true
+  },
+  "world_sha256": "24ece99b9a967f1e4f3e4694adc0bf61f25dd67da310401aa0eb2e095b75390e",
+  "result": {
+    "scenario": "moving",
+    "pass": true,
+    "duration_s": 60.00000000000001,
+    "pose_samples": 1199,
+    "pose_series_complete": true,
+    "minimum_footprint_separation_bound_m": 4.76023164784568,
+    "footprint_crossing": false,
+    "ego_travel_m": 69.94214385822224,
+    "settled": false,
+    "final_camera_distance_m": 7.249735355377197,
+    "last_10s_camera_range_m": [
+      7.249735355377197,
+      7.380325794219971
+    ],
+    "stale_stop_delay_s": null,
+    "final_state": "driving",
+    "max_final_2s_speed_mps": 0.9998000000359752,
+    "braking_lead_speeds_mps": {}
+  },
+  "cleanup": "passed",
+  "wall_duration_s": 69.53301191702485
+}

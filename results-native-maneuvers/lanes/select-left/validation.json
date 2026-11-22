@@ -1,0 +1,38 @@
+{
+  "name": "select-left",
+  "status": "passed",
+  "started_utc": "2026-11-22T12:19:37.184377+00:00",
+  "artifacts": "select-left",
+  "readiness": {
+    "clock": 0.05,
+    "clock_advances": 43,
+    "image": 0.002,
+    "lane": 0.002,
+    "odom": 0.05,
+    "ready": true,
+    "startup_wall_s": 2.758554416941479
+  },
+  "renderer": {
+    "backend": "Metal",
+    "device": "Apple M1 Pro (system default)",
+    "log_sha256": "7f6935c3a98f0df3a84f3cc0f727355bc72ad6dd77570161125bba459908faad",
+    "log_mtime_ns": 1795349980403458129,
+    "verified_open_by_run": true
+  },
+  "world_sha256": "a3d7ce1726889cba3ffb18727b6c0a9bdd4c310ba070403c3dfac7d39495c2ee",
+  "track_sha256": "ef9fb517f5128107977d91cf35c1981aac954bdb6eefbd36a6621945dccef478",
+  "result": {
+    "pass": true,
+    "source_lane": "leftmost",
+    "target_lane": "leftmost",
+    "samples": 561,
+    "duration_s": 28.0,
+    "divider_crossings": 0,
+    "outer_boundary_crossing": false,
+    "commanded_stops": 0,
+    "final_window_max_lateral_error_m": 2.151313044151948e-05,
+    "final_window_max_heading_error_rad": 6.428700638107705e-07
+  },
+  "cleanup": "passed",
+  "wall_duration_s": 36.39812712511048
+}

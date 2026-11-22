@@ -1,0 +1,20 @@
+{
+  "scenario": "static",
+  "pass": true,
+  "duration_s": 36.00000000000001,
+  "pose_samples": 719,
+  "pose_series_complete": true,
+  "minimum_footprint_separation_bound_m": 5.083700000066995,
+  "footprint_crossing": false,
+  "ego_travel_m": 9.515115003569178,
+  "settled": true,
+  "final_camera_distance_m": 5.977842807769775,
+  "last_10s_camera_range_m": [
+    5.977842807769775,
+    5.977842807769775
+  ],
+  "stale_stop_delay_s": null,
+  "final_state": "lead_vehicle",
+  "max_final_2s_speed_mps": 0.0,
+  "braking_lead_speeds_mps": {}
+}
