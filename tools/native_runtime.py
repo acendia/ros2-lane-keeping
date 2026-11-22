@@ -75,10 +75,11 @@ class Processes:
         self.descendants = {}
         self.closed = False
 
-    def start(self, name, command, required=True):
+    def start(self, name, command, required=True, *, env=None):
         with (self.output / f'{name}.log').open('w') as stream:
             child = subprocess.Popen(command, cwd=ROOT, stdout=stream,
-                                     stderr=subprocess.STDOUT, start_new_session=True)
+                                     stderr=subprocess.STDOUT, start_new_session=True,
+                                     env=env)
         self.children.append(child)
         self.records.append({'name': name, 'pid': child.pid, 'command': command, 'required': required,
                              'started_utc': utc_now(), 'monotonic_start': time.monotonic()})

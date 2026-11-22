@@ -112,6 +112,59 @@ def test_low_sun_shadow_recovers_lane_target():
     assert result.lane_width_m == pytest.approx(3.88, abs=0.12)
 
 
+def test_marking_loss_stops_then_reacquisition_ramps_speed(monkeypatch):
+    from types import SimpleNamespace
+
+    from auto_drive_sim.lane_controller import LaneController
+    from auto_drive_sim.lane_perception import LanePerception
+    from nav_msgs.msg import Odometry
+    import rclpy
+    from rclpy.time import Time
+
+    marked = _frame('straight.png')
+    blank = np.full_like(marked, 90)
+    rclpy.init()
+    perception = LanePerception()
+    controller = LaneController()
+    commands = []
+    clock = SimpleNamespace(now=lambda: Time(nanoseconds=now_ns))
+    monkeypatch.setattr(perception, 'get_clock', lambda: clock)
+    monkeypatch.setattr(controller, 'get_clock', lambda: clock)
+    perception.estimate_publisher = SimpleNamespace(publish=controller._on_estimate)
+    controller.publisher = SimpleNamespace(publish=commands.append)
+
+    def frame(image, milliseconds):
+        nonlocal now_ns
+        now_ns = milliseconds * 1_000_000
+        message = perception.bridge.cv2_to_imgmsg(image, encoding='bgr8')
+        message.header.stamp = clock.now().to_msg()
+        odom = Odometry()
+        odom.header.stamp = message.header.stamp
+        controller._on_odometry(odom)
+        perception._on_image(message)
+        controller._on_timer()
+        return commands[-1]
+
+    now_ns = 0
+    try:
+        frame(marked, 1000)
+        assert frame(marked, 1100).linear.x > 0
+        assert frame(blank, 1200).linear.x > 0
+        assert controller.estimate.reason == 'held_last_valid'
+        assert controller.estimate.header.stamp.nanosec == 100_000_000
+        stopped = frame(blank, 1400)
+        assert stopped.linear.x == stopped.angular.z == 0
+        assert controller.last_status == 'lane_invalid'
+        assert frame(blank, 2000).linear.x == 0
+        resumed = frame(marked, 2050)
+        assert controller.last_status == 'driving'
+        assert resumed.linear.x == pytest.approx(0.05 * controller.config.max_acceleration_mps2)
+    finally:
+        controller.destroy_node()
+        perception.destroy_node()
+        rclpy.shutdown()
+
+
 def test_rightmost_lane_selection():
     """Three solid lines must select the lane nearest the right edge."""
     image = np.full((360, 640, 3), 90, dtype=np.uint8)

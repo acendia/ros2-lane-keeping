@@ -137,6 +137,7 @@ def scenario_step(processes, output, args, scenario, offset):
         '--start-y', str(start_y)], 10)
     launch = ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
               'gui:=false', 'controller:=false', f'world:={world}']
+    launch_env = None
     if model_path is not None:
         sdf = ET.parse(world)
         includes = {include.findtext('name'): include for include in sdf.findall('./world/include')}
@@ -145,9 +146,9 @@ def scenario_step(processes, output, args, scenario, offset):
         sdf.write(world, encoding='utf-8')
         existing = os.environ.get('GZ_SIM_RESOURCE_PATH')
         resources = os.pathsep.join([str(model_path), existing] if existing else [str(model_path)])
-        launch = ['env', f'GZ_SIM_RESOURCE_PATH={resources}', *launch]
+        launch_env = dict(os.environ, GZ_SIM_RESOURCE_PATH=resources)
     started_ns = time.time_ns()
-    processes.start('launch', launch)
+    processes.start('launch', launch, env=launch_env)
     processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
         '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/eval_bridge.yaml"}'])
     acknowledgement = ready(processes, output, 'lane', args.startup_timeout)
