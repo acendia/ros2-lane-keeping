@@ -7,6 +7,7 @@ import sys
 import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / 'tools'))
 spec = importlib.util.spec_from_file_location('native_check', ROOT / 'tools/native_check.py')
 native_check = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(native_check)

@@ -110,3 +110,53 @@ did not interrupt any of the scored laps.
 
 This remains experimental. Repeat cold starts, longer runs, the dashed and
 shadow worlds, lead following, and the GUI before considering a merge to main.
+
+## Supervised validation (milestones 1–2)
+
+The runner checks the exact qualified bundle, native Python imports, and the
+installed scenario assets before launching a simulator. Environment details,
+package versions, named source hashes, effective settings, and input hashes are
+recorded alongside each result. A changed installed asset requires a rebuild.
+An intentional bundle upgrade can be qualified using `NATIVE_ROS_EXPECTED_VERSION`;
+changing that value alone does not establish compatibility.
+
+```bash
+tools/native.sh python3 tools/native_check.py preflight
+tools/native.sh python3 tools/native_check.py startup --repetitions 10 --require-clean
+tools/native.sh python3 tools/native_check.py camera --duration 60 --require-clean
+tools/native.sh python3 tools/native_check.py scenarios --require-clean
+```
+
+`--domain` (or `NATIVE_ROS_DOMAIN_ID`) selects a local ROS domain in 0–100.
+Checks reserve their domain and serialize access to Ogre's shared renderer log.
+Do not run an unrelated native Gazebo instance during validation. A Metal pass
+requires fresh log contents held open by an owned process and an actual device
+selection; loading the Metal plugin is insufficient. An explicit software-rendering
+request is rejected rather than silently removed.
+
+Readiness requires an advancing simulation clock and current image data; driving
+also requires a valid lane estimate and fresh odometry. The evaluator writes an
+acknowledgement only after it processes its first scored pose. These bounded
+checks replace fixed sleeps. Defaults allow 45 wall seconds for startup and
+420 wall seconds for a scenario. `--startup-timeout` and `--scenario-timeout`
+control those deadlines, independently of the unchanged 0.3 s input freshness
+policy and 130 simulated-second scoring timeout.
+
+Each run produces `validation.json` and a generated `summary.md`, including on
+failure or interruption. Logs stay with that invocation. Ctrl-C returns 130;
+failed or timed-out checks return nonzero. Cleanup signals ROS launcher leaders
+first, then escalates to owned groups and known descendants. Expected context
+shutdown is handled by the nodes; runtime exceptions with a live context remain
+errors. A successful check also requires completed process cleanup.
+
+To export a successful clean-revision run into a **new** public snapshot:
+
+```bash
+python3 tools/native_report.py artifacts/native-validation/<run> \
+  --output results-native-hardening/<snapshot>
+```
+
+Export rejects failed, interrupted, dirty, incomplete, or mismatched records and
+never overwrites an existing snapshot. It copies JSON/CSV evidence and camera
+images, extracts renderer selection, and omits raw process logs and personal
+home paths. Historical `results-native/` records retain their original provenance.

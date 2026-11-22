@@ -12,6 +12,8 @@ from geometry_msgs.msg import Twist, PoseStamped
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
+from rclpy._rclpy_pybind11 import RCLError
 import yaml
 
 CSV_FIELDS = [
@@ -76,6 +78,7 @@ class Evaluator(Node):
     def __init__(self) -> None:
         """Load the track and subscribe to ground truth and perception."""
         super().__init__('evaluator')
+        self.declare_parameter('ready_file', '')
         self.declare_parameter('scenario', 'center')
         self.declare_parameter('start_x', -10.0)
         self.declare_parameter('start_y', 15.0)
@@ -216,6 +219,10 @@ class Evaluator(Node):
             self.cmd_speed, self.latest_perception_valid,
         ])
 
+        ready_file = self.get_parameter('ready_file').value
+        if ready_file and len(self.samples) == 1:
+            Path(ready_file).write_text(json.dumps({'ready': True, 'pose_stamp_s': now_s}) + '\n')
+
         if self.progress_m >= self.center_length:
             self.lap_complete = True
             self._finish()
@@ -298,7 +305,11 @@ def main() -> None:
     try:
         while rclpy.ok() and not node.done:
             rclpy.spin_once(node, timeout_sec=0.1)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
+        node._finish()
+    except RCLError:
+        if rclpy.ok():
+            raise
         node._finish()
     finally:
         try:

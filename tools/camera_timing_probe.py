@@ -45,6 +45,7 @@ def main():
         gaps = np.diff(values[:, 1])
         ages = values[:, 2] - values[:, 1]
         result.update(
+            wall_span_s=wall_span, simulation_span_s=sim_span,
             wall_rate_hz=(len(rows) - 1) / wall_span,
             sim_rate_hz=(len(rows) - 1) / sim_span if sim_span > 0 else 0,
             observed_real_time_factor=sim_span / wall_span,

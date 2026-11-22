@@ -11,6 +11,8 @@ from cv_bridge import CvBridge
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
+from rclpy._rclpy_pybind11 import RCLError
 from rclpy.qos import qos_profile_sensor_data
 from sensor_msgs.msg import Image
 
@@ -603,8 +605,11 @@ def main() -> None:
     node = LanePerception()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except RCLError:
+        if rclpy.ok():
+            raise
     finally:
         try:
             node.destroy_node()

@@ -34,3 +34,5 @@ artifacts/
 build-native/
 install-native/
 log-native/
+
+/PLAN_NATIVE.md

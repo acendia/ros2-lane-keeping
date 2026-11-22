@@ -95,3 +95,28 @@ def test_dedicated_pose_uses_source_time_and_rejects_replays():
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
+
+def test_readiness_acknowledges_an_actual_scored_pose(tmp_path):
+    import json
+    import rclpy
+    from geometry_msgs.msg import PoseStamped
+    from rclpy.parameter import Parameter
+    rclpy.init()
+    node = evaluator.Evaluator()
+    path = tmp_path / 'ready.json'
+    try:
+        node.set_parameters([Parameter('ready_file', value=str(path))])
+        pose = PoseStamped()
+        pose.pose.position.x = -10.0
+        pose.pose.position.y = 15.0
+        pose.pose.orientation.w = 1.0
+        node._on_model_poses(pose)
+        assert not path.exists()
+        pose.header.stamp.sec = 1
+        node._on_model_poses(pose)
+        assert json.loads(path.read_text()) == {'ready': True, 'pose_stamp_s': 1.0}
+        assert len(node.samples) == 1
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()

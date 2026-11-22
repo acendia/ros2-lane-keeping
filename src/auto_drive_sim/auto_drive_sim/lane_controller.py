@@ -9,6 +9,8 @@ from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
 import rclpy
 from rclpy.node import Node
+from rclpy.executors import ExternalShutdownException
+from rclpy._rclpy_pybind11 import RCLError
 from auto_drive_sim_interfaces.msg import LeadEstimate
 
 
@@ -357,8 +359,11 @@ def main() -> None:
     node = LaneController()
     try:
         rclpy.spin(node)
-    except KeyboardInterrupt:
+    except (KeyboardInterrupt, ExternalShutdownException):
         pass
+    except RCLError:
+        if rclpy.ok():
+            raise
     finally:
         try:
             node.destroy_node()
