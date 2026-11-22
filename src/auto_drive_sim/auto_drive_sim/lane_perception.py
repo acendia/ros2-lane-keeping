@@ -303,6 +303,10 @@ def _join_points(components: list, config: PerceptionConfig) -> tuple:
     if left_x_array.size < 3 or right_x_array.size < 3:
         return (left_x_array, left_y_array), (right_x_array, right_y_array)
 
+    # Paired fragments can project to only one or two distinct ground depths.
+    # A quadratic is then underdetermined and cannot guide assignment safely.
+    if np.unique(left_x_array).size < 3 or np.unique(right_x_array).size < 3:
+        return (left_x_array, left_y_array), (right_x_array, right_y_array)
     left_coefficients = np.polyfit(left_x_array, left_y_array, 2)
     right_coefficients = np.polyfit(right_x_array, right_y_array, 2)
 

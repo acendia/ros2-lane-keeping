@@ -228,6 +228,15 @@ their timestamps; the camera frame is the latest received, not necessarily
 the exact frame that triggered the failure. These diagnostic outputs do not
 alter perception, controller inputs, or the existing safe-stop thresholds.
 
+Replaying the 24 captured stop frames reproduced 22 `sparse_boundaries` and
+two `lane_too_wide` results. Reducing the minimum boundary point count from
+50 to 20 did not change these results. Some paired fragments projected to a
+single ground depth, causing an underdetermined preliminary quadratic fit;
+the assignment stage now skips that fit when either side has fewer than three
+distinct depths. The final boundary validity checks still reject insufficient
+geometry. This removes the fit warnings in the replay but does not resolve
+the detection dropouts or establish an improvement in stop frequency.
+
 Run the same stress world with the supervised native runner:
 
 ```bash

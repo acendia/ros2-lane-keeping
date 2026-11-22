@@ -52,6 +52,22 @@ def test_within_hold():
     assert not lane_perception.within_hold(10.0, 9.9, 0.25)
 
 
+def test_paired_fragments_with_one_depth_do_not_fit_quadratic():
+    import warnings
+    components = [
+        lane_perception.MarkingComponent(
+            x_values=np.full(10, 4.0), y_values=np.full(10, y),
+            x_center_m=4.0, y_center_m=y)
+        for y in (1.8, -1.8)
+    ]
+    with warnings.catch_warnings():
+        warnings.simplefilter('error', np.RankWarning)
+        left, right = lane_perception._join_points(components, CONFIG)
+    assert len(left[0]) == len(right[0]) == 10
+    assert lane_perception.fit_boundary(*left, CONFIG) is None
+    assert lane_perception.fit_boundary(*right, CONFIG) is None
+
+
 def _fit(value: float) -> lane_perception.BoundaryFit:
     return lane_perception.BoundaryFit(
         coefficients=np.array([0.0, 0.0, value]),
