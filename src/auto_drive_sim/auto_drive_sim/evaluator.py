@@ -9,9 +9,14 @@ import time
 from ament_index_python.packages import get_package_share_directory
 from auto_drive_sim_interfaces.msg import LaneEstimate
 from geometry_msgs.msg import Twist, PoseStamped
+from sensor_msgs.msg import Image
+from std_msgs.msg import String
+from cv_bridge import CvBridge
+import cv2
 import numpy as np
 import rclpy
 from rclpy.node import Node
+from rclpy.qos import qos_profile_sensor_data
 from rclpy.executors import ExternalShutdownException
 from rclpy._rclpy_pybind11 import RCLError
 import yaml
@@ -137,6 +142,11 @@ class Evaluator(Node):
         self.moving = False
         self.stop_events = 0
         self.stop_times = []
+        self.diagnostic_events = []
+        self.latest_lane_diagnostic = None
+        self.latest_controller_diagnostic = None
+        self.latest_image = None
+        self.bridge = CvBridge()
         self.lap_complete = False
         self.done = False
         self.wall_start = time.monotonic()
@@ -147,7 +157,27 @@ class Evaluator(Node):
             LaneEstimate, '/car/lane_estimate', self._on_estimate, 10)
         self.create_subscription(
             Twist, '/car/cmd_vel', self._on_cmd_vel, 10)
+        self.create_subscription(String, '/car/lane_diagnostic', self._on_lane_diagnostic, 10)
+        self.create_subscription(String, '/car/controller_diagnostic', self._on_controller_diagnostic, 10)
+        self.create_subscription(Image, '/car/camera/image_raw', self._on_image, qos_profile_sensor_data)
         self.create_timer(1.0, self._on_timer)
+
+    def _on_image(self, message: Image) -> None:
+        self.latest_image = message
+
+    def _on_lane_diagnostic(self, message: String) -> None:
+        value = json.loads(message.data)
+        previous = self.latest_lane_diagnostic
+        self.latest_lane_diagnostic = value
+        if not value['valid'] and (previous is None or previous['valid'] or previous['reason'] != value['reason']):
+            self.diagnostic_events.append({'type': 'lane_detection_invalid', **value})
+
+    def _on_controller_diagnostic(self, message: String) -> None:
+        value = json.loads(message.data)
+        previous = self.latest_controller_diagnostic
+        self.latest_controller_diagnostic = value
+        if previous is None or previous['status'] != value['status']:
+            self.diagnostic_events.append({'type': 'controller_transition', **value})
 
     def _on_estimate(self, message: LaneEstimate) -> None:
         self.perception_messages += 1
@@ -165,6 +195,18 @@ class Evaluator(Node):
             self.stop_events += 1
             now_s = self.get_clock().now().nanoseconds * 1e-9
             self.stop_times.append(round(now_s, 3))
+            event = {'type': 'commanded_stop', 'stamp_s': now_s,
+                     'controller_observation': self.latest_controller_diagnostic,
+                     'lane_observation': self.latest_lane_diagnostic}
+            if self.latest_image is not None:
+                stamp = self.latest_image.header.stamp
+                event['image_stamp_s'] = stamp.sec + stamp.nanosec * 1e-9
+                self.output_dir.mkdir(parents=True, exist_ok=True)
+                filename = f'stop-{self.stop_events:03d}.png'
+                image = self.bridge.imgmsg_to_cv2(self.latest_image, desired_encoding='bgr8')
+                if cv2.imwrite(str(self.output_dir / filename), image):
+                    event['image'] = filename
+            self.diagnostic_events.append(event)
         self.cmd_speed = speed
 
     def _on_model_poses(self, message: PoseStamped) -> None:
@@ -295,6 +337,8 @@ class Evaluator(Node):
                 ])
         (self.output_dir / 'result.json').write_text(
             json.dumps(result, indent=2) + '\n', encoding='utf-8')
+        (self.output_dir / 'diagnostic_events.json').write_text(
+            json.dumps(self.diagnostic_events, indent=2) + '\n', encoding='utf-8')
         print(json.dumps(result, indent=2), flush=True)
 
 

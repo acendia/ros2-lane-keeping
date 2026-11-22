@@ -120,3 +120,35 @@ def test_readiness_acknowledges_an_actual_scored_pose(tmp_path):
     finally:
         node.destroy_node()
         rclpy.shutdown()
+
+
+def test_stop_diagnostics_retain_observations_and_transitions(tmp_path):
+    import json
+    import rclpy
+    from geometry_msgs.msg import Twist
+    from std_msgs.msg import String
+    rclpy.init()
+    node = evaluator.Evaluator()
+    node.output_dir = tmp_path
+    try:
+        lane = String(data=json.dumps({'image_stamp_s': 1.0, 'valid': False,
+                                      'reason': 'sparse_boundaries', 'confidence': 0.0}))
+        node._on_lane_diagnostic(lane)
+        node._on_lane_diagnostic(lane)
+        state = String(data=json.dumps({'stamp_s': 1.1, 'status': 'lane_invalid',
+                                       'command_speed_mps': 0.0}))
+        node._on_controller_diagnostic(state)
+        node._on_controller_diagnostic(state)
+        moving = Twist()
+        moving.linear.x = 0.5
+        node._on_cmd_vel(moving)
+        node._on_cmd_vel(Twist())
+        assert [event['type'] for event in node.diagnostic_events] == [
+            'lane_detection_invalid', 'controller_transition', 'commanded_stop']
+        stop = node.diagnostic_events[-1]
+        assert stop['lane_observation']['reason'] == 'sparse_boundaries'
+        assert stop['controller_observation']['status'] == 'lane_invalid'
+        assert 'image' not in stop
+    finally:
+        node.destroy_node()
+        rclpy.shutdown()

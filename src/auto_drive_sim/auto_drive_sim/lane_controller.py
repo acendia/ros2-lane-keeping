@@ -1,12 +1,14 @@
 """Pure-pursuit lane following controller."""
 
 from dataclasses import dataclass
+import json
 import math
 from typing import Optional
 
 from auto_drive_sim_interfaces.msg import LaneEstimate
 from geometry_msgs.msg import Twist
 from nav_msgs.msg import Odometry
+from std_msgs.msg import String
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import ExternalShutdownException
@@ -294,6 +296,7 @@ class LaneController(Node):
         self.lead_stamp_s = None
         self.last_status = ''
         self.publisher = self.create_publisher(Twist, '/car/cmd_vel', 10)
+        self.diagnostic_publisher = self.create_publisher(String, '/car/controller_diagnostic', 10)
         self.create_subscription(
             LaneEstimate, '/car/lane_estimate', self._on_estimate, 10)
         self.create_subscription(
@@ -347,6 +350,10 @@ class LaneController(Node):
         message = Twist()
         message.linear.x = command.speed_mps
         message.angular.z = command.yaw_rate_radps
+        diagnostic = String()
+        diagnostic.data = json.dumps({'stamp_s': now_s, 'status': command.status,
+                                      'command_speed_mps': command.speed_mps})
+        self.diagnostic_publisher.publish(diagnostic)
         self.publisher.publish(message)
         if command.status != self.last_status:
             self.get_logger().info(f'controller state: {command.status}')

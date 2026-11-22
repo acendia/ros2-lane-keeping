@@ -6,6 +6,8 @@ import math
 from typing import Optional
 
 from auto_drive_sim_interfaces.msg import LaneEstimate
+from std_msgs.msg import String
+import json
 import cv2
 from cv_bridge import CvBridge
 import numpy as np
@@ -545,6 +547,7 @@ class LanePerception(Node):
             LaneEstimate, '/car/lane_estimate', 10)
         self.debug_publisher = self.create_publisher(
             Image, '/car/debug_image', 10)
+        self.diagnostic_publisher = self.create_publisher(String, '/car/lane_diagnostic', 10)
         self.last_valid_estimate = None
         self.last_valid_result = None
         self.last_valid_stamp_s = None
@@ -562,6 +565,11 @@ class LanePerception(Node):
             result = _invalid('stale_image')
         else:
             result = analyze_frame(image, self.ground, self.config)
+
+        diagnostic = String()
+        diagnostic.data = json.dumps({'image_stamp_s': stamp_s, 'valid': result.valid,
+                                      'reason': result.reason, 'confidence': result.confidence})
+        self.diagnostic_publisher.publish(diagnostic)
 
         estimate = LaneEstimate()
         estimate.header = message.header

@@ -212,6 +212,22 @@ it is an exploratory baseline, not a clean-revision or repeatability claim.
 Stop causes were not recorded, so the counts alone cannot establish whether
 lane detection, stale input, or another condition caused each stop.
 
+An instrumented follow-up on the same date completed all three laps with 8,
+9 and 7 commanded stops. At 22 of the 24 stop observations, the latest raw
+lane detection reported `sparse_boundaries`; the other two reported
+`lane_too_wide`. Those observations are correlated with the stops, not proof
+that each caused the stop. Controller state may have changed during braking;
+use the timestamped transition history to inspect it. This was also an
+exploratory working-tree run.
+
+The evaluator saves `diagnostic_events.json` and a camera image at each
+commanded stop in its scenario output. The event stream records changes in
+controller state and raw invalid lane detections, including failures hidden by
+the short estimate hold. Stop records include the latest observations and
+their timestamps; the camera frame is the latest received, not necessarily
+the exact frame that triggered the failure. These diagnostic outputs do not
+alter perception, controller inputs, or the existing safe-stop thresholds.
+
 Run the same stress world with the supervised native runner:
 
 ```bash
