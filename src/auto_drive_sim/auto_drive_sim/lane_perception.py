@@ -350,7 +350,17 @@ def extract_boundary_points(mask: np.ndarray, ground: GroundPlane,
                             config: PerceptionConfig) -> tuple:
     """Group marking pieces into left and right boundary point sets."""
     components = _marking_components(mask, ground, config)
-    if config.lane_strategy == 'rightmost' and len(components) > 2:
+    if config.lane_strategy == 'intersection':
+        # Keep longitudinal paint that supports the steering lookahead. Short
+        # crosswalk blocks and the transverse stop bar can sit farther right.
+        x = config.target_distance_m
+        fitted = []
+        for component in components:
+            fit = fit_boundary(component.x_values, component.y_values, config)
+            if fit is not None and fit.x_min_m <= x <= fit.x_max_m:
+                fitted.append((fit.evaluate(x), component))
+        components = [item[1] for item in sorted(fitted, key=lambda item: item[0])[:2]]
+    elif config.lane_strategy == 'rightmost' and len(components) > 2:
         components = sorted(
             components, key=lambda component: component.y_center_m)[:2]
     elif config.lane_strategy == 'leftmost' and len(components) > 2:
@@ -614,8 +624,8 @@ class LanePerception(Node):
         self.lane_change_to = self.get_parameter('lane_change_to').value
         self.change_delay = self.get_parameter('lane_change_delay_s').value
         self.change_duration = self.get_parameter('lane_change_duration_s').value
-        if self.config.lane_strategy not in ('single', 'leftmost', 'rightmost'):
-            raise ValueError('lane_strategy must be single, leftmost, or rightmost')
+        if self.config.lane_strategy not in ('single', 'leftmost', 'rightmost', 'intersection'):
+            raise ValueError('Unknown lane strategy')
         if self.lane_change_to and (self.lane_change_to not in ('leftmost', 'rightmost') or
                                     self.config.lane_strategy not in ('leftmost', 'rightmost') or
                                     self.lane_change_to == self.config.lane_strategy or

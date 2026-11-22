@@ -339,7 +339,7 @@ def intersection_step(processes, output, args, scenario):
     sdf.write(world, encoding='utf-8')
     started_ns = time.time_ns()
     processes.start('launch', ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
-        'gui:=false', 'controller:=false', 'lane_strategy:=rightmost', f'world:={world}'],
+        'gui:=false', 'controller:=false', 'lane_strategy:=intersection', f'world:={world}'],
         env=launch_env)
     processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
         '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/eval_bridge.yaml"}'])

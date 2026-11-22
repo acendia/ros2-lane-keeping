@@ -2,10 +2,12 @@
 
 import cv2
 import numpy as np
+from dataclasses import replace
+from pathlib import Path
 import pytest
 
 from auto_drive_sim.intersection import StraightRoute, stop_line_distance
-from auto_drive_sim.lane_perception import CameraModel, GroundPlane
+from auto_drive_sim.lane_perception import CameraModel, GroundPlane, PerceptionConfig, analyze_frame
 
 
 def test_stop_line_distinguishes_transverse_paint_from_lane_lines():
@@ -39,6 +41,14 @@ def test_route_holds_at_rest_after_a_stale_input_and_stops_at_goal():
     assert route.limit(7.1, 8.5, 0.0, True) > 0
     assert route.limit(30.0, 27.9, 0.0, True) == 0
     assert route.phase == 'arrived'
+
+
+def test_crosswalk_and_stop_bar_do_not_replace_lane_boundaries():
+    frame = cv2.imread(str(Path(__file__).parent / 'frames/intersection_approach.png'))
+    config = replace(PerceptionConfig(), lane_strategy='intersection')
+    result = analyze_frame(frame, GroundPlane(CameraModel()), config)
+    assert result.valid
+    assert result.target_y_m == pytest.approx(0.0, abs=0.12)
 
 
 def test_yielding_requires_observed_traffic_followed_by_a_clear_view():

@@ -82,7 +82,7 @@ class StraightRoute:
             self.clear_since = None
             return 0.0
         if self.phase == 'approach':
-            target = self.search_limit_m if self.line_m is None else self.line_m - 2.4
+            target = self.search_limit_m if self.line_m is None else self.line_m - 2.55
             if self.line_m is None:
                 return self.braking_limit(target - position)
             if target - position > 0.12:
