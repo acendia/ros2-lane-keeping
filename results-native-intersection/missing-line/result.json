@@ -1,0 +1,14 @@
+{
+  "pass": true,
+  "duration_s": 18.0,
+  "samples": 361,
+  "final_phase": "approach",
+  "stopped_before_line_s": 0.0,
+  "front_clearance_m": null,
+  "goal_error_m": 22.09402628222068,
+  "final_position_x_m": -29.09402628222068,
+  "settled": true,
+  "pose_series_complete": true,
+  "premature_line_crossing": false,
+  "lane_boundary_crossing": false
+}

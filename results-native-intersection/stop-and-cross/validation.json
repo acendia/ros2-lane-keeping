@@ -1,0 +1,40 @@
+{
+  "name": "stop-and-cross",
+  "status": "passed",
+  "started_utc": "2026-11-22T13:54:10.873208+00:00",
+  "artifacts": "stop-and-cross",
+  "readiness": {
+    "clock": 0.05,
+    "clock_advances": 49,
+    "image": 0.002,
+    "lane": 0.002,
+    "odom": 0.05,
+    "ready": true,
+    "startup_wall_s": 2.6631623751018196
+  },
+  "renderer": {
+    "backend": "Metal",
+    "device": "Apple M1 Pro (system default)",
+    "log_sha256": "4a60df4cb4f8dc22693711ff884ffb407d9fc22239cdbe89d523843cf6fb02b8",
+    "log_mtime_ns": 1795355654059112628,
+    "verified_open_by_run": true
+  },
+  "world_sha256": "60df0e06faa0ba5cfe0864d1434d9259727d4654d3ead1ff1aa8a95135f903a2",
+  "track_sha256": "ef9fb517f5128107977d91cf35c1981aac954bdb6eefbd36a6621945dccef478",
+  "result": {
+    "pass": true,
+    "duration_s": 42.0,
+    "samples": 841,
+    "final_phase": "arrived",
+    "stopped_before_line_s": 1.9500000000000028,
+    "front_clearance_m": 0.14010199762558528,
+    "goal_error_m": 0.09940500635384897,
+    "final_position_x_m": -7.099405006353849,
+    "settled": true,
+    "pose_series_complete": true,
+    "premature_line_crossing": false,
+    "lane_boundary_crossing": false
+  },
+  "cleanup": "passed",
+  "wall_duration_s": 50.11387487500906
+}

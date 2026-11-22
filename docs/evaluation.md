@@ -242,6 +242,24 @@ tools/native.sh python3 tools/native_check.py lead --require-clean
 [Lane maneuver records](../results-native-maneuvers/lanes/summary.md) ·
 [Lead-vehicle records](../results-native-maneuvers/lead/summary.md)
 
+## Stop line and route goal
+
+The car detects the transverse stripe with its front camera and uses odometry
+to stop at a goal beyond the junction. The Gazebo evaluator scores the
+vehicle's footprint, dwell time, and final position.
+
+| Scenario | Result |
+|---|---|
+| Empty intersection with stop line | Stopped 0.14 m before the near edge of the stripe, recorded 1.95 s at rest, then crossed and stopped 0.10 m short of the goal |
+| Stop line missing | Stopped at the approach limit and waited, with the vehicle center 4.92 m before the expected stripe edge |
+
+Both native runs passed with no lane-boundary crossings. The route uses a
+straight approach and a fixed crossing goal. [Trajectory and run records](../results-native-intersection/summary.md)
+
+```bash
+tools/native.sh python3 tools/native_check.py intersection --require-clean
+```
+
 ## Dashed and worn track
 
 Track version 2 keeps the same oval, start poses, controller, and evaluator. It

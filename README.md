@@ -40,6 +40,10 @@ crossings. The car settled within 2.1 cm of the target lane center.
 
 [Lane maneuver results](results-native-maneuvers/lanes/summary.md) · [Lead-vehicle results](results-native-maneuvers/lead/summary.md) · [Docker baseline](results/summary.md)
 
+At an empty intersection, the car stopped at the painted line, waited about
+two seconds, and reached its route goal within 10 cm. With the line removed,
+it stopped before entering the intersection. [Intersection results](results-native-intersection/summary.md)
+
 ## How it works
 
 - **Lane detection** estimates both boundaries and the lane center from the front camera.
@@ -103,6 +107,7 @@ On a configured Apple Silicon Mac:
 tools/native.sh python3 tools/native_check.py scenarios --tight-worn
 tools/native.sh python3 tools/native_check.py lanes
 tools/native.sh python3 tools/native_check.py lead
+tools/native.sh python3 tools/native_check.py intersection
 ```
 
 The runners print the path to the results. [Evaluation guide](docs/evaluation.md)
