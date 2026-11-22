@@ -112,7 +112,8 @@ def camera_step(processes, output, args, timing=True):
 def scenario_step(processes, output, args, scenario, offset):
     world = output / 'world.sdf'
     processes.command('world', [sys.executable, 'tools/make_scenario_world.py',
-        '--offset', str(offset), '--output', str(world)], 10)
+        '--offset', str(offset), '--output', str(world), '--source-world',
+        str(ROOT / 'src/auto_drive_sim/worlds' / args.world)], 10)
     started_ns = time.time_ns()
     processes.start('launch', ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
         'gui:=false', 'controller:=false', f'world:={world}'])
@@ -216,6 +217,8 @@ def main():
     parser.add_argument('--domain', type=int, default=int(os.environ.get('NATIVE_ROS_DOMAIN_ID', '72')))
     parser.add_argument('--startup-timeout', type=float, default=45)
     parser.add_argument('--scenario-timeout', type=float, default=420)
+    parser.add_argument('--world', choices=['car_world.sdf', 'car_world_lighting.sdf'],
+                        default='car_world.sdf', help='Scenario world for lane-keeping evaluation')
     parser.add_argument('--require-clean', action='store_true')
     args = parser.parse_args()
     if min(args.duration, args.repetitions, args.startup_timeout, args.scenario_timeout) <= 0:

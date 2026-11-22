@@ -196,6 +196,28 @@ one recorded run: p95 errors 0.230 m (center), 0.249 m (left), and 0.300 m
 runs varied, so the shadow lap is a stress check and not repeatable yet. See
 [`evaluation.md`](evaluation.md).
 
+### Native low-sun baseline
+
+The lane-keeping system (LKS) combines camera-based lane boundary detection
+with lateral control to follow the lane center. Its current operational design
+domain is a simulated road with painted white boundaries and a calibrated,
+forward-facing camera; low sun and worn markings remain stress conditions.
+
+On 2026-11-22, a native Metal run of `car_world_lighting.sdf` completed all
+three laps without a footprint crossing. The center, left and right starts had
+8, 7 and 8 stop events respectively, and 96.37%, 96.94% and 96.63% valid
+perception messages. Their p95 absolute lateral errors were 0.2314 m, 0.2370 m
+and 0.2350 m. This was a working-tree run adding world selection to the runner;
+it is an exploratory baseline, not a clean-revision or repeatability claim.
+Stop causes were not recorded, so the counts alone cannot establish whether
+lane detection, stale input, or another condition caused each stop.
+
+Run the same stress world with the supervised native runner:
+
+```bash
+tools/native.sh python3 tools/native_check.py scenarios --world car_world_lighting.sdf
+```
+
 Run the perception tests:
 
 ```bash
