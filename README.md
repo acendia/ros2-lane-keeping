@@ -5,10 +5,10 @@ using a front-facing camera. It now follows straight and curved lanes, adjusts
 its speed for bends, and can follow a lead vehicle. I use ROS 2 Jazzy, Gazebo
 Harmonic, and Python.
 
-![Two-lane demo with the front camera and lane detection overlay](docs/media/two_lane_fast_demo.gif)
+![Gazebo front-camera recording of the car slowing and stopping behind a stationary lead](docs/media/stationary_lead_stop.gif)
 
-Right-lane demo at up to 2.0 m/s. The camera feed is on the left and the lane
-detection overlay is on the right.
+The red box represents a stationary lead vehicle. The overlay shows what the
+camera estimates for range and how the car slows to a stop.
 
 ## Results
 
