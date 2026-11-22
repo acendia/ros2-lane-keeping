@@ -44,6 +44,10 @@ At an empty intersection, the car stopped at the painted line, waited about
 two seconds, and reached its route goal within 10 cm. With the line removed,
 it stopped before entering the intersection. [Intersection results](results-native-intersection/summary.md)
 
+![Front-camera recording of the car stopping at the line, crossing the intersection, and reaching its route goal](docs/media/intersection_stop_and_cross.gif)
+
+Gazebo recording at 2× playback. The overlay shows measured speed and the current driving phase.
+
 ## How it works
 
 - **Lane detection** estimates both boundaries and the lane center from the front camera.
