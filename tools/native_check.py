@@ -296,14 +296,37 @@ def intersection_step(processes, output, args, scenario):
     scene = sdf.find('world')
     line_center_x, line_depth = -24.0, 0.34
     goal_x, search_x = -7.0, -29.0
+    traffic = scenario == 'cross-traffic'
     scene.append(ET.fromstring('''
         <model name="cross_street"><static>true</static>
           <pose>-18 15 0.001 0 0 0</pose><link name="road"><visual name="asphalt">
-            <geometry><box><size>6 22 0.005</size></box></geometry>
+            <geometry><box><size>7.2 36 0.005</size></box></geometry>
             <material><ambient>0.20 0.20 0.22 1</ambient>
               <diffuse>0.22 0.22 0.24 1</diffuse></material>
           </visual></link>
         </model>'''))
+    def paint(name, x, y, dx, dy, color, height=0.018, thickness=0.004):
+        scene.append(ET.fromstring(f'''
+            <model name="{name}"><static>true</static><pose>{x} {y} {height} 0 0 0</pose>
+              <link name="surface"><visual name="surface">
+                <geometry><box><size>{dx} {dy} {thickness}</size></box></geometry>
+                <material><ambient>{color} 1</ambient><diffuse>{color} 1</diffuse></material>
+              </visual></link>
+            </model>'''))
+
+    for index, y in enumerate((1, 5, 9, 21, 25, 29)):
+        paint(f'cross_center_{index}', -18, y, 0.11, 2.4, '0.88 0.72 0.10')
+    for side, x in enumerate((-22.2, -13.8)):
+        for end, y in enumerate((5, 25)):
+            paint(f'sidewalk_{side}_{end}', x, y, 1.2, 11.4, '0.53 0.53 0.51', 0.06, 0.12)
+        for index in range(12):
+            paint(f'crosswalk_{side}_{index}', x, 11.65 + 0.60 * index,
+                  1.2, 0.24, '0.92 0.92 0.90')
+    if traffic:
+        scene.append(ET.fromstring('''
+            <include><uri>model://lead_car</uri><name>lead_vehicle</name>
+              <pose>-16.25 8.5 0.05 0 0 1.57079632679</pose>
+            </include>'''))
     if scenario != 'missing-line':
         scene.append(ET.fromstring(f'''
             <model name="stop_line"><static>true</static>
@@ -320,6 +343,14 @@ def intersection_step(processes, output, args, scenario):
         env=launch_env)
     processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
         '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/eval_bridge.yaml"}'])
+    if traffic:
+        processes.start('cross-bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
+            '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/lead_bridge.yaml"}'])
+        processes.start('cross-pose-bridge', ['ros2', 'run', 'ros_gz_bridge', 'parameter_bridge',
+            '/model/lead_vehicle/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose',
+            '--ros-args', '-r', '/model/lead_vehicle/pose:=/evaluation/lead_pose'])
+        processes.start('cross-traffic', [sys.executable, 'tools/cross_traffic.py',
+            '--ros-args', '-p', 'use_sim_time:=true'])
     acknowledgement = ready(processes, output, 'lane', args.startup_timeout)
     evidence = render_proof(processes, output, started_ns)
     command = [sys.executable, 'tools/intersection_probe.py', str(output),
@@ -328,11 +359,14 @@ def intersection_step(processes, output, args, scenario):
                '--goal-x', str(goal_x), '--search-x', str(search_x)]
     if scenario == 'missing-line':
         command.append('--missing-line')
+    if traffic:
+        command.append('--cross-traffic')
     probe = processes.start('probe', [*command, '--ros-args', '-p', 'use_sim_time:=true'])
     processes.wait_file(output / 'probe-ready.json', args.startup_timeout)
     processes.start('intersection-controller', ['ros2', 'run', 'auto_drive_sim', 'intersection_controller',
         '--ros-args', '-p', 'use_sim_time:=true', '-p', f'goal_m:={goal_x + 35.0}',
-        '-p', f'search_limit_m:={search_x + 35.0}'])
+        '-p', f'search_limit_m:={search_x + 35.0}',
+        '-p', f'yield_to_traffic:={str(traffic).lower()}'])
     processes.start('controller', ['ros2', 'run', 'auto_drive_sim', 'lane_controller',
         '--ros-args', '-p', 'use_sim_time:=true', '-p', 'target_speed_mps:=1.2',
         '-r', '/car/cmd_vel:=/car/lane_cmd_vel'])
@@ -401,7 +435,7 @@ def execute(args, output):
                     scenarios = ('select-left', 'change-left', 'change-right')
                     step_action = lane_step
                 else:
-                    scenarios = ('stop-and-cross', 'missing-line')
+                    scenarios = ('stop-and-cross', 'missing-line', 'cross-traffic')
                     step_action = intersection_step
                 for scenario in scenarios:
                     scoped_step(output / scenario,

@@ -11,6 +11,7 @@ from geometry_msgs.msg import PoseStamped
 import rclpy
 from rclpy.node import Node
 from std_msgs.msg import String
+from lead_scenario_probe import separation
 
 from native_runtime import write_json
 
@@ -22,9 +23,18 @@ class IntersectionProbe(Node):
         self.state = None
         self.start = None
         self.samples = []
+        self.ego_poses = {}
+        self.traffic_poses = {}
         self.done = False
         self.create_subscription(String, '/car/intersection_state', self.on_state, 20)
         self.create_subscription(PoseStamped, '/evaluation/ego_pose', self.on_pose, 20)
+        if args.cross_traffic:
+            self.create_subscription(PoseStamped, '/evaluation/lead_pose', self.on_traffic_pose, 20)
+
+    def on_traffic_pose(self, message):
+        pose = message.pose
+        self.traffic_poses[stamp_s(message)] = (
+            pose.position.x, pose.position.y, yaw_from_quaternion(pose.orientation))
 
     def on_state(self, message):
         self.state = json.loads(message.data)
@@ -33,7 +43,7 @@ class IntersectionProbe(Node):
         if self.done or stamp_s(message) <= 0:
             return
         ready = self.args.output / 'probe-ready.json'
-        if not ready.exists():
+        if not ready.exists() and (not self.args.cross_traffic or self.traffic_poses):
             write_json(ready, {'ready': True})
         if self.state is None or abs(stamp_s(message) - self.state['stamp_s']) > 0.15:
             return
@@ -49,10 +59,13 @@ class IntersectionProbe(Node):
         corners = footprint_corners(x, y, yaw_from_quaternion(pose.orientation), 3.8, 1.6)
         crossing = any(abs(corner_y - self.args.lane_y) > self.args.lane_half_width
                        for _, corner_y in corners)
+        self.ego_poses[stamp_s(message)] = (x, y, yaw_from_quaternion(pose.orientation))
         self.samples.append((elapsed, x, y, max(cx for cx, _ in corners),
                              self.state['phase'], self.state['actual_speed_mps'],
-                             self.state['command_speed_mps'], self.state['line_station_m'], crossing))
-        if elapsed >= (18.0 if self.args.missing_line else 42.0):
+                             self.state['command_speed_mps'], self.state['line_station_m'], crossing,
+                             self.state.get('traffic_blocked')))
+        duration = 18.0 if self.args.missing_line else 53.0 if self.args.cross_traffic else 42.0
+        if elapsed >= duration:
             self.finish()
 
     def finish(self):
@@ -88,10 +101,35 @@ class IntersectionProbe(Node):
             'settled': settled, 'pose_series_complete': complete,
             'premature_line_crossing': early_crossing, 'lane_boundary_crossing': edge,
         }
+        if self.args.cross_traffic:
+            common = sorted(self.ego_poses.keys() & self.traffic_poses.keys())
+            coverage = bool(common and common[0] - self.start <= 0.1 and
+                            self.start + rows[-1][0] - common[-1] <= 0.1 and
+                            all(b - a <= 0.1 for a, b in zip(common, common[1:])))
+            gaps = [separation(self.ego_poses[t], self.traffic_poses[t], 3.8) for t in common]
+            minimum_gap = min(gaps, default=None)
+            blocked_at_rest = sum(row[4] == 'hold' and row[5] <= 0.05 and row[9] is True for row in rows)
+            rear_clear = False
+            if first_cross is not None and common:
+                release = self.start + rows[first_cross][0]
+                closest = min(common, key=lambda t: abs(t - release))
+                rear = min(y for _, y in footprint_corners(*self.traffic_poses[closest], 3.8, 1.6))
+                rear_clear = abs(closest - release) <= 0.1 and rear > self.args.lane_y + self.args.lane_half_width
+            result.update(traffic_pose_series_complete=coverage, minimum_separation_bound_m=minimum_gap,
+                          traffic_detected_while_stopped_samples=blocked_at_rest,
+                          crossing_car_cleared_lane_before_release=rear_clear)
+            result['pass'] = bool(result['pass'] and coverage and rear_clear and
+                                  blocked_at_rest >= 20 and dwell >= 3.0 and minimum_gap > 0)
+            with (self.args.output / 'traffic_trajectory.csv').open('w', newline='') as stream:
+                writer = csv.writer(stream, lineterminator='\n')
+                writer.writerow(('sim_s', 'ego_x_m', 'ego_y_m', 'ego_yaw_rad',
+                                 'traffic_x_m', 'traffic_y_m', 'traffic_yaw_rad', 'separation_bound_m'))
+                writer.writerows((t, *self.ego_poses[t], *self.traffic_poses[t], gap)
+                                 for t, gap in zip(common, gaps))
         with (self.args.output / 'trajectory.csv').open('w', newline='') as stream:
             writer = csv.writer(stream, lineterminator='\n')
             writer.writerow(('elapsed_s', 'x_m', 'y_m', 'front_x_m', 'phase', 'speed_mps',
-                             'command_speed_mps', 'line_station_m', 'lane_crossing'))
+                             'command_speed_mps', 'line_station_m', 'lane_crossing', 'traffic_blocked'))
             writer.writerows(rows)
         write_json(self.args.output / 'result.json', result)
         self.done = True
@@ -103,6 +141,7 @@ if __name__ == '__main__':
     for field in ('lane-y', 'lane-half-width', 'line-x', 'goal-x', 'search-x'):
         parser.add_argument(f'--{field}', type=float, required=True)
     parser.add_argument('--missing-line', action='store_true')
+    parser.add_argument('--cross-traffic', action='store_true')
     args, ros_args = parser.parse_known_args()
     rclpy.init(args=ros_args)
     node = IntersectionProbe(args)

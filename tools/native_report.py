@@ -120,6 +120,8 @@ def export_run(source, output):
                     required.append('cut-detector.json')
             elif report['mode'] in ('lanes', 'intersection'):
                 required += ['result.json', 'trajectory.csv', 'probe-ready.json']
+                if name == 'cross-traffic':
+                    required.append('traffic_trajectory.csv')
             else:
                 required += ['image.json', 'frame.png']
             if report['mode'] == 'camera':
@@ -147,7 +149,7 @@ def export_run(source, output):
             if path.is_file():
                 value = json.loads(path.read_text())
                 (directory / file).write_text(json.dumps(public_json(value), indent=2) + '\n')
-        for file in ('frame.png', 'lateral_error.csv', 'trajectory.csv'):
+        for file in ('frame.png', 'lateral_error.csv', 'trajectory.csv', 'traffic_trajectory.csv'):
             path = source / name / file
             if path.is_file():
                 shutil.copy2(path, directory / file)

@@ -4,6 +4,7 @@ import json
 import math
 
 from auto_drive_sim.lane_perception import CameraModel, GroundPlane
+from auto_drive_sim.lead_detector import LeadDetectorConfig, estimate_lead_distance
 import cv2
 from cv_bridge import CvBridge
 from geometry_msgs.msg import Twist
@@ -50,7 +51,7 @@ def stop_line_distance(image, ground):
 class StraightRoute:
     """Stop at the confirmed line, hold at rest, then continue to the goal."""
 
-    def __init__(self, goal_m, search_limit_m):
+    def __init__(self, goal_m, search_limit_m, *, yield_to_traffic=False):
         if not (math.isfinite(goal_m) and 0 < search_limit_m < goal_m):
             raise ValueError('Route requires 0 < search limit < goal')
         self.goal_m = goal_m
@@ -59,6 +60,9 @@ class StraightRoute:
         self.candidates = []
         self.phase = 'approach'
         self.rest_since = None
+        self.yield_to_traffic = yield_to_traffic
+        self.saw_traffic = False
+        self.clear_since = None
 
     def observe_line(self, station_m):
         if self.line_m is not None or self.phase != 'approach':
@@ -72,9 +76,10 @@ class StraightRoute:
         if len(self.candidates) == 3:
             self.line_m = float(np.median(self.candidates))
 
-    def limit(self, now, position, speed, fresh):
+    def limit(self, now, position, speed, fresh, traffic_blocked=None):
         if not fresh:
             self.rest_since = None
+            self.clear_since = None
             return 0.0
         if self.phase == 'approach':
             target = self.search_limit_m if self.line_m is None else self.line_m - 2.4
@@ -84,11 +89,20 @@ class StraightRoute:
                 return self.braking_limit(target - position)
             self.phase = 'hold'
         if self.phase == 'hold':
+            if traffic_blocked is True:
+                self.saw_traffic = True
+            if traffic_blocked is False and self.saw_traffic:
+                if self.clear_since is None:
+                    self.clear_since = now
+            else:
+                self.clear_since = None
+            can_cross = not self.yield_to_traffic or (
+                self.clear_since is not None and now - self.clear_since >= 0.8)
             if speed > 0.05:
                 self.rest_since = None
             elif self.rest_since is None:
                 self.rest_since = now
-            elif now - self.rest_since >= 2.0:
+            elif now - self.rest_since >= 2.0 and can_cross:
                 self.phase = 'cross'
             return 0.0
         if self.phase == 'cross':
@@ -108,12 +122,16 @@ class IntersectionController(Node):
         super().__init__('intersection_controller')
         self.declare_parameter('goal_m', 28.0)
         self.declare_parameter('search_limit_m', 6.0)
+        self.declare_parameter('yield_to_traffic', False)
         self.route = StraightRoute(self.get_parameter('goal_m').value,
-                                   self.get_parameter('search_limit_m').value)
+                                   self.get_parameter('search_limit_m').value,
+                                   yield_to_traffic=self.get_parameter('yield_to_traffic').value)
         self.camera = CameraModel()
         self.ground = GroundPlane(self.camera)
         self.bridge = CvBridge()
         self.frame_stamp = None
+        self.traffic_blocked = None
+        self.traffic_config = LeadDetectorConfig(max_distance_m=12.0)
         self.odom = None
         self.lane_command = None
         self.lane_command_stamp = None
@@ -140,6 +158,10 @@ class IntersectionController(Node):
         if not 0 <= self.now() - stamp <= 0.3 or (self.frame_stamp is not None and stamp <= self.frame_stamp):
             return
         self.frame_stamp = stamp
+        if self.route.yield_to_traffic and self.route.phase in ('approach', 'hold'):
+            image = self.bridge.imgmsg_to_cv2(message, 'bgr8')
+            self.traffic_blocked = estimate_lead_distance(
+                image, self.ground, self.traffic_config) is not None
         if self.route.line_m is not None or self.odom is None or abs(stamp - stamp_s(self.odom)) > 0.10:
             return
         distance = stop_line_distance(self.bridge.imgmsg_to_cv2(message, 'bgr8'), self.ground)
@@ -156,7 +178,7 @@ class IntersectionController(Node):
         fresh = all(t is not None and 0 <= now - t <= 0.3 for t in stamps)
         position = self.odom.pose.pose.position.x if self.odom else 0.0
         speed = abs(self.odom.twist.twist.linear.x) if self.odom else 0.0
-        cap = self.route.limit(now, position, speed, fresh)
+        cap = self.route.limit(now, position, speed, fresh, self.traffic_blocked)
         command = Twist()
         if cap > 0 and self.lane_command.linear.x > 0:
             command.linear.x = min(cap, self.lane_command.linear.x, self.previous_speed + 0.6 * dt)
@@ -166,6 +188,7 @@ class IntersectionController(Node):
         self.diagnostics.publish(String(data=json.dumps({
             'stamp_s': now, 'phase': self.route.phase, 'line_station_m': self.route.line_m,
             'actual_speed_mps': speed, 'command_speed_mps': command.linear.x,
+            'traffic_blocked': self.traffic_blocked,
         })))
 
 

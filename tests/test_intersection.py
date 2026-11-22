@@ -39,3 +39,22 @@ def test_route_holds_at_rest_after_a_stale_input_and_stops_at_goal():
     assert route.limit(7.1, 8.5, 0.0, True) > 0
     assert route.limit(30.0, 27.9, 0.0, True) == 0
     assert route.phase == 'arrived'
+
+
+def test_yielding_requires_observed_traffic_followed_by_a_clear_view():
+    route = StraightRoute(28.0, 6.0, yield_to_traffic=True)
+    for _ in range(3):
+        route.observe_line(11.0)
+    for time in (1.0, 4.0):
+        assert route.limit(time, 8.5, 0.0, True, False) == 0.0
+    assert route.phase == 'hold'
+    route.limit(4.1, 8.5, 0.0, True, True)
+    route.limit(4.3, 8.5, 0.0, True, False)
+    route.limit(4.9, 8.5, 0.0, False, False)
+    route.limit(5.0, 8.5, 0.0, True, False)
+    route.limit(5.7, 8.5, 0.0, True, False)
+    assert route.phase == 'hold'
+    route.limit(6.0, 8.5, 0.0, True, False)
+    assert route.phase == 'hold'
+    route.limit(7.1, 8.5, 0.0, True, False)
+    assert route.phase == 'cross'
