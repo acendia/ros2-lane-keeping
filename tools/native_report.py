@@ -50,11 +50,12 @@ def render_report(report, metadata=None):
             if step['name'] == 'preflight':
                 continue
             result = step.get('result', {})
-            duration = result.get('duration_s', 'missing')
+            duration = result.get('duration_s')
+            duration_text = f'{duration:.2f}' if duration is not None else 'missing'
             gap = result.get('minimum_footprint_separation_bound_m')
             gap_text = f'{gap:.3f}' if gap is not None else 'missing'
             lines.append(f'| [{step["name"]}]({step["name"]}/result.json) | {step["status"]} | '
-                         f'{duration} | {gap_text} | {result.get("final_state", "missing")} |')
+                         f'{duration_text} | {gap_text} | {result.get("final_state", "missing")} |')
     return '\n'.join(lines) + '\n'
 
 

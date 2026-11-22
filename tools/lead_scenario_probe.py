@@ -164,7 +164,7 @@ class LeadProbe(Node):
             'max_final_2s_speed_mps': max(final_speed, default=None),
         }
         with (self.output / 'trajectory.csv').open('w', newline='') as stream:
-            writer = csv.writer(stream)
+            writer = csv.writer(stream, lineterminator='\n')
             writer.writerow(('stamp_s', 'ego_x_m', 'ego_y_m', 'ego_yaw_rad', 'lead_x_m',
                              'lead_y_m', 'lead_yaw_rad', 'separation_bound_m', 'footprint_crossing'))
             writer.writerows(rows)

@@ -1,0 +1,1 @@
+13:56:56: Metal: Requested "(default)", selected "Apple M1 Pro (system default)"

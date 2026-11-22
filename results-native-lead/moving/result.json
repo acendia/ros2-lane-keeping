@@ -1,0 +1,19 @@
+{
+  "scenario": "moving",
+  "pass": true,
+  "duration_s": 60.00000000000001,
+  "pose_samples": 1199,
+  "pose_series_complete": true,
+  "minimum_footprint_separation_bound_m": 4.761389678637466,
+  "footprint_crossing": false,
+  "ego_travel_m": 70.03152343002183,
+  "settled": false,
+  "final_camera_distance_m": 7.249735355377197,
+  "last_10s_camera_range_m": [
+    7.249735355377197,
+    7.380325794219971
+  ],
+  "stale_stop_delay_s": null,
+  "final_state": "driving",
+  "max_final_2s_speed_mps": 0.9998000000587127
+}

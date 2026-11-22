@@ -180,6 +180,32 @@ detector.
 stayed behind the lead around the east curve. Results are in
 [`results-lead/`](../results-lead/).
 
+The automated native run adds a detector outage and captures synchronized
+poses at 20 Hz. The ego controller still uses its camera and odometry. The
+evaluator uses ground truth to score lane footprint and estimate the minimum
+separation between the vehicle footprints over the recorded poses. The
+separating-axis bound measures distance between the modeled footprints,
+while the detector estimates range from the camera.
+
+| Scenario | Measured result | Minimum footprint separation bound |
+|---|---|---:|
+| Stationary lead | Settled at 0.00 m/s with a 5.98 m camera range | 5.08 m |
+| Moving lead | Followed for 60 simulated seconds. The last 10 s had a 7.25–7.38 m camera range, and ego settled near 1.0 m/s | 4.76 m |
+| Detector outage | Commanded zero speed 0.516 s after the last usable image and settled at 0.00 m/s | 14.13 m |
+
+All three runs passed with no sampled footprint overlap or lane-boundary
+crossing. The outage criterion allows 0.50 s for the estimate to expire
+and one 0.05 s control tick. This detector identifies the red simulation
+vehicle by color. The scenarios use one lane and one lead speed.
+
+```bash
+tools/native.sh python3 tools/native_check.py lead --require-clean
+```
+
+The [native run records](../results-native-lead/summary.md) include the
+scenario criteria, measured trajectories, stamped detector observations,
+commanded and actual speed, and source revision.
+
 ## Dashed and worn track
 
 Track version 2 keeps the same oval, start poses, controller, and evaluator. It
