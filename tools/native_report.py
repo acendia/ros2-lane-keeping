@@ -69,6 +69,17 @@ def render_report(report, metadata=None):
                          f'{result.get("divider_crossings", "missing")} | '
                          f'{result.get("outer_boundary_crossing", "missing")} | '
                          f'{error_text} | {result.get("commanded_stops", "missing")} |')
+    if report['mode'] == 'intersection':
+        lines += ['| Scenario | Status | Final phase | Stopped before line (s) |',
+                  '|---|---|---|---:|']
+        for step in report['steps']:
+            if step['name'] == 'preflight':
+                continue
+            result = step.get('result', {})
+            dwell = result.get('stopped_before_line_s')
+            dwell_text = f'{dwell:.2f}' if dwell is not None else 'missing'
+            lines.append(f'| [{step["name"]}]({step["name"]}/result.json) | {step["status"]} | '
+                         f'{result.get("final_phase", "missing")} | {dwell_text} |')
     return '\n'.join(lines) + '\n'
 
 
@@ -107,7 +118,7 @@ def export_run(source, output):
                 required += ['result.json', 'trajectory.csv', 'telemetry.json', 'probe-ready.json']
                 if name == 'loss':
                     required.append('cut-detector.json')
-            elif report['mode'] == 'lanes':
+            elif report['mode'] in ('lanes', 'intersection'):
                 required += ['result.json', 'trajectory.csv', 'probe-ready.json']
             else:
                 required += ['image.json', 'frame.png']

@@ -285,6 +285,65 @@ def lane_step(processes, output, args, scenario):
             'result': result}
 
 
+def intersection_step(processes, output, args, scenario):
+    config, config_path, road, launch_env = make_straight_track(processes, output)
+    track = config['track']
+    half_width = (track['lane_width_m'] + track['marking_width_m']) / 2
+    lane_y = track['curve_radius_m'] - half_width
+    world = straight_scenario_world(ROOT / 'src/auto_drive_sim/worlds/car_world_two_lane.sdf',
+                                    output, road, lane_y)
+    sdf = ET.parse(world)
+    scene = sdf.find('world')
+    line_center_x, line_depth = -24.0, 0.34
+    goal_x, search_x = -7.0, -29.0
+    scene.append(ET.fromstring('''
+        <model name="cross_street"><static>true</static>
+          <pose>-18 15 0.001 0 0 0</pose><link name="road"><visual name="asphalt">
+            <geometry><box><size>6 22 0.005</size></box></geometry>
+            <material><ambient>0.20 0.20 0.22 1</ambient>
+              <diffuse>0.22 0.22 0.24 1</diffuse></material>
+          </visual></link>
+        </model>'''))
+    if scenario != 'missing-line':
+        scene.append(ET.fromstring(f'''
+            <model name="stop_line"><static>true</static>
+              <pose>{line_center_x} {lane_y} 0.018 0 0 0</pose><link name="paint"><visual name="stripe">
+                <geometry><box><size>{line_depth} 2.60 0.004</size></box></geometry>
+                <material><ambient>0.95 0.95 0.95 1</ambient>
+                  <diffuse>0.95 0.95 0.95 1</diffuse></material>
+              </visual></link>
+            </model>'''))
+    sdf.write(world, encoding='utf-8')
+    started_ns = time.time_ns()
+    processes.start('launch', ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
+        'gui:=false', 'controller:=false', 'lane_strategy:=rightmost', f'world:={world}'],
+        env=launch_env)
+    processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
+        '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/eval_bridge.yaml"}'])
+    acknowledgement = ready(processes, output, 'lane', args.startup_timeout)
+    evidence = render_proof(processes, output, started_ns)
+    command = [sys.executable, 'tools/intersection_probe.py', str(output),
+               '--lane-y', str(lane_y), '--lane-half-width', str(half_width),
+               '--line-x', str(line_center_x - line_depth / 2),
+               '--goal-x', str(goal_x), '--search-x', str(search_x)]
+    if scenario == 'missing-line':
+        command.append('--missing-line')
+    probe = processes.start('probe', [*command, '--ros-args', '-p', 'use_sim_time:=true'])
+    processes.wait_file(output / 'probe-ready.json', args.startup_timeout)
+    processes.start('intersection-controller', ['ros2', 'run', 'auto_drive_sim', 'intersection_controller',
+        '--ros-args', '-p', 'use_sim_time:=true', '-p', f'goal_m:={goal_x + 35.0}',
+        '-p', f'search_limit_m:={search_x + 35.0}'])
+    processes.start('controller', ['ros2', 'run', 'auto_drive_sim', 'lane_controller',
+        '--ros-args', '-p', 'use_sim_time:=true', '-p', 'target_speed_mps:=1.2',
+        '-r', '/car/cmd_vel:=/car/lane_cmd_vel'])
+    processes.wait_for(probe, args.scenario_timeout)
+    result = require_result(output / 'result.json', ('pass', 'final_phase'))
+    return {'readiness': acknowledgement, 'renderer': evidence,
+            'world_sha256': hashlib.sha256(world.read_bytes()).hexdigest(),
+            'track_sha256': hashlib.sha256(config_path.read_bytes()).hexdigest(),
+            'result': result}
+
+
 def execute(args, output):
     report = {'schema_version': 1, 'mode': args.mode, 'status': 'running',
               'started_utc': utc_now(), 'steps': [], 'settings': vars(args)}
@@ -299,7 +358,7 @@ def execute(args, output):
 
             def environment(processes, directory):
                 command = [sys.executable, 'tools/native_runtime.py', '--output', str(directory / 'environment.json')]
-                if args.mode in ('scenarios', 'lead', 'lanes'):
+                if args.mode in ('scenarios', 'lead', 'lanes', 'intersection'):
                     command.append('--project')
                 processes.command('preflight', command, 60)
                 return require_result(directory / 'environment.json', ('architecture', 'ros_bundle_version', 'gazebo'))
@@ -333,14 +392,17 @@ def execute(args, output):
                         failed.append(scenario)
                 if failed:
                     raise ValidationError(f'Scenarios did not meet lap criteria: {", ".join(failed)}')
-            elif args.mode in ('lead', 'lanes'):
+            elif args.mode in ('lead', 'lanes', 'intersection'):
                 failed = []
                 if args.mode == 'lead':
                     scenarios = args.lead_case or ('static', 'moving', 'braking', 'loss')
                     step_action = lead_step
-                else:
+                elif args.mode == 'lanes':
                     scenarios = ('select-left', 'change-left', 'change-right')
                     step_action = lane_step
+                else:
+                    scenarios = ('stop-and-cross', 'missing-line')
+                    step_action = intersection_step
                 for scenario in scenarios:
                     scoped_step(output / scenario,
                         lambda p, d, s=scenario: step_action(p, d, args, s), report, scenario)
@@ -372,7 +434,8 @@ def execute(args, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['preflight', 'startup', 'camera', 'scenarios', 'lead', 'lanes'])
+    parser.add_argument('mode', choices=['preflight', 'startup', 'camera', 'scenarios', 'lead', 'lanes',
+                                         'intersection'])
     parser.add_argument('--lead-case', choices=('static', 'moving', 'braking', 'loss'), nargs='+',
                         help='Run selected lead-vehicle cases')
     parser.add_argument('--duration', type=float, default=60)

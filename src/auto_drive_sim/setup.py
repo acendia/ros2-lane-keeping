@@ -51,6 +51,7 @@ setup(
         'console_scripts': [
             'evaluator = auto_drive_sim.evaluator:main',
             'lane_controller = auto_drive_sim.lane_controller:main',
+            'intersection_controller = auto_drive_sim.intersection:main',
             'lane_perception = auto_drive_sim.lane_perception:main',
             'lead_detector = auto_drive_sim.lead_detector:main',
             'lead_driver = auto_drive_sim.lead_driver:main',

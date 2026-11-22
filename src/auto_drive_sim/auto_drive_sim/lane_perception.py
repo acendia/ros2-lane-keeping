@@ -170,6 +170,12 @@ class GroundPlane:
         selected = (mask > 0) & self._valid
         return self._x[selected], self._y[selected]
 
+    def points_for_pixels(self, pixels) -> tuple:
+        """Project a short sequence of (row, column) pixels onto the road."""
+        rows, columns = np.asarray(pixels).T
+        valid = self._valid[rows, columns]
+        return self._x[rows[valid], columns[valid]], self._y[rows[valid], columns[valid]]
+
     def project(self, x_m: float, y_m: float) -> tuple:
         """Project a camera-frame ground point back to a pixel."""
         cos_pitch = math.cos(self.camera.pitch_rad)
