@@ -40,11 +40,11 @@ crossings. The car settled within 2.1 cm of the target lane center.
 
 [Lane maneuver results](results-native-maneuvers/lanes/summary.md) · [Lead-vehicle results](results-native-maneuvers/lead/summary.md) · [Docker baseline](results/summary.md)
 
-At an empty intersection, the car stopped at the painted line, waited about
-two seconds, and reached its route goal within 10 cm. With the line removed,
-it stopped before entering the intersection. [Intersection results](results-native-intersection/summary.md)
+At the intersection, the car stopped at the painted line, yielded to a car
+on the cross street, and reached its route goal within 10 cm. With the line
+removed, it stopped before entering the intersection. [Intersection results](results-native-cross-traffic/summary.md)
 
-![Front-camera recording of the car stopping at the line, crossing the intersection, and reaching its route goal](docs/media/intersection_stop_and_cross.gif)
+![Front-camera recording of the car yielding to a second car at the intersection and continuing to its route goal](docs/media/intersection_stop_and_cross.gif)
 
 Gazebo recording at 2× playback. The overlay shows measured speed and the current driving phase.
 

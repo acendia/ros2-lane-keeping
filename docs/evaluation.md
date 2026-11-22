@@ -244,17 +244,23 @@ tools/native.sh python3 tools/native_check.py lead --require-clean
 
 ## Stop line and route goal
 
-The car detects the transverse stripe with its front camera and uses odometry
-to stop at a goal beyond the junction. The Gazebo evaluator scores the
-vehicle's footprint, dwell time, and final position.
+The intersection has a marked cross street, sidewalks, and zebra crossings.
+The car detects the stop line with its front camera and uses odometry to stop
+at a goal beyond the junction. In the traffic case it waits for the scripted
+red car to pass and for the camera view to remain clear. Synchronized Gazebo
+poses verify that the second car cleared the ego lane before release.
 
 | Scenario | Result |
 |---|---|
-| Empty intersection with stop line | Stopped 0.14 m before the near edge of the stripe, recorded 1.95 s at rest, then crossed and stopped 0.10 m short of the goal |
+| Empty intersection with stop line | Stopped 0.24 m before the near edge of the stripe, recorded 1.95 s at rest, then crossed and stopped 0.10 m short of the goal |
 | Stop line missing | Stopped at the approach limit and waited, with the vehicle center 4.92 m before the expected stripe edge |
+| Crossing car | Waited 7.65 s at the line, resumed after the other car cleared the lane, and stopped 0.10 m short of the goal. The minimum sampled footprint-separation bound was 7.08 m |
 
-Both native runs passed with no lane-boundary crossings. The route uses a
-straight approach and a fixed crossing goal. [Trajectory and run records](../results-native-intersection/summary.md)
+All three native runs passed with no lane-boundary crossings. Bright
+crosswalk paint initially confused lane selection. The intersection detector
+now rejects marking fragments that do not support the steering lookahead.
+The traffic run still logged brief lane-estimate rejections and recovered
+within the run. [Trajectory and run records](../results-native-cross-traffic/summary.md)
 
 ```bash
 tools/native.sh python3 tools/native_check.py intersection --require-clean

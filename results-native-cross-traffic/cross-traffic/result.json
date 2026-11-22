@@ -1,0 +1,18 @@
+{
+  "pass": true,
+  "duration_s": 53.0,
+  "samples": 1061,
+  "final_phase": "arrived",
+  "stopped_before_line_s": 7.649999999999999,
+  "front_clearance_m": 0.23463016225508682,
+  "goal_error_m": 0.09885049451365635,
+  "final_position_x_m": -7.098850494513656,
+  "settled": true,
+  "pose_series_complete": true,
+  "premature_line_crossing": false,
+  "lane_boundary_crossing": false,
+  "traffic_pose_series_complete": true,
+  "minimum_separation_bound_m": 7.075671211827704,
+  "traffic_detected_while_stopped_samples": 137,
+  "crossing_car_cleared_lane_before_release": true
+}
