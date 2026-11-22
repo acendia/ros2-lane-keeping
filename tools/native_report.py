@@ -56,6 +56,19 @@ def render_report(report, metadata=None):
             gap_text = f'{gap:.3f}' if gap is not None else 'missing'
             lines.append(f'| [{step["name"]}]({step["name"]}/result.json) | {step["status"]} | '
                          f'{duration_text} | {gap_text} | {result.get("final_state", "missing")} |')
+    if report['mode'] == 'lanes':
+        lines += ['| Scenario | Status | Divider crossings | Road-edge crossing | Final max lateral error (m) | Stops |',
+                  '|---|---|---:|---|---:|---:|']
+        for step in report['steps']:
+            if step['name'] == 'preflight':
+                continue
+            result = step.get('result', {})
+            error = result.get('final_window_max_lateral_error_m')
+            error_text = f'{error:.3f}' if error is not None else 'missing'
+            lines.append(f'| [{step["name"]}]({step["name"]}/result.json) | {step["status"]} | '
+                         f'{result.get("divider_crossings", "missing")} | '
+                         f'{result.get("outer_boundary_crossing", "missing")} | '
+                         f'{error_text} | {result.get("commanded_stops", "missing")} |')
     return '\n'.join(lines) + '\n'
 
 
@@ -94,6 +107,8 @@ def export_run(source, output):
                 required += ['result.json', 'trajectory.csv', 'telemetry.json', 'probe-ready.json']
                 if name == 'loss':
                     required.append('cut-detector.json')
+            elif report['mode'] == 'lanes':
+                required += ['result.json', 'trajectory.csv', 'probe-ready.json']
             else:
                 required += ['image.json', 'frame.png']
             if report['mode'] == 'camera':

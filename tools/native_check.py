@@ -12,6 +12,7 @@ import sys
 import tempfile
 import time
 import xml.etree.ElementTree as ET
+import yaml
 
 from native_report import render_report
 from native_runtime import (
@@ -180,14 +181,49 @@ def lap_passed(result):
             0 <= result['lateral_error_p95_abs_m'] < 0.35 and result['samples'] >= 2)
 
 
+def make_straight_track(processes, output):
+    config = yaml.safe_load((ROOT / 'src/auto_drive_sim/config/track_two_lane.yaml').read_text())
+    config['track']['straight_length_m'] = 90.0
+    config['model_name'] = 'road_scenario_straight'
+    config_path = output / 'track.yaml'
+    config_path.write_text(yaml.safe_dump(config))
+    road = output / 'models' / config['model_name']
+    processes.command('track', [sys.executable, 'tools/generate_track.py',
+        '--config', str(config_path), '--output', str(road)], 15)
+    existing = os.environ.get('GZ_SIM_RESOURCE_PATH')
+    paths = [str(road.parent)] + ([existing] if existing else [])
+    return config, config_path, road, dict(os.environ, GZ_SIM_RESOURCE_PATH=os.pathsep.join(paths))
+
+
+def straight_scenario_world(source, output, road, ego_y, *, lead=False):
+    sdf = ET.parse(source)
+    includes = {item.findtext('name'): item for item in sdf.findall('./world/include')}
+    includes['road'].find('uri').text = f'model://{road.name}'
+    includes['car'].find('pose').text = f'-35 {ego_y} 0.05 0 0 0'
+    if lead:
+        includes['lead_vehicle'].find('pose').text = f'-20 {ego_y} 0.05 0 0 0'
+    world = output / 'world.sdf'
+    sdf.write(world, encoding='utf-8')
+    return world
+
+
 def lead_step(processes, output, args, scenario):
-    moving = scenario == 'moving'
+    moving = scenario in ('moving', 'braking')
     suffix = '_moving_lead' if moving else '_lead'
     world = ROOT / 'src/auto_drive_sim/worlds' / f'car_world_two_lane{suffix}.sdf'
+    launch_env = None
+    probe_track = []
+    if scenario == 'braking':
+        config, _, road, launch_env = make_straight_track(processes, output)
+        track = config['track']
+        ego_y = track['curve_radius_m'] - (track['lane_width_m'] + track['marking_width_m']) / 2
+        world = straight_scenario_world(world, output, road, ego_y, lead=True)
+        probe_track = ['--centerline', str(road / 'centerline.csv')]
     started_ns = time.time_ns()
     processes.start('launch', ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
         'gui:=false', 'controller:=false', 'lane_strategy:=rightmost',
-        f'lead_driver:={str(moving).lower()}', f'world:={world}'])
+        f'lead_driver:={str(moving).lower()}',
+        f'lead_braking_scenario:={str(scenario == "braking").lower()}', f'world:={world}'], env=launch_env)
     processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
         '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/eval_bridge.yaml"}'])
     if moving:
@@ -199,7 +235,7 @@ def lead_step(processes, output, args, scenario):
     detector = processes.start('detector', [sys.executable, '-m', 'auto_drive_sim.lead_detector',
         '--ros-args', '-p', 'use_sim_time:=true'], required=scenario != 'loss')
     probe = processes.start('probe', [sys.executable, 'tools/lead_scenario_probe.py', scenario,
-        str(output), str(world), '--ros-args', '-p', 'use_sim_time:=true'])
+        str(output), str(world), *probe_track, '--ros-args', '-p', 'use_sim_time:=true'])
     processes.wait_file(output / 'probe-ready.json', args.startup_timeout)
     processes.start('controller', ['ros2', 'run', 'auto_drive_sim', 'lane_controller',
         '--ros-args', '-p', 'use_sim_time:=true', '-p', 'lead_enabled:=true'])
@@ -213,6 +249,40 @@ def lead_step(processes, output, args, scenario):
     result = require_result(output / 'result.json', ('pass', 'pose_samples'))
     return {'readiness': acknowledgement, 'renderer': evidence,
             'world_sha256': hashlib.sha256(world.read_bytes()).hexdigest(), 'result': result}
+
+
+def lane_step(processes, output, args, scenario):
+    source = 'rightmost' if scenario == 'change-left' else 'leftmost'
+    target = 'rightmost' if scenario == 'change-right' else 'leftmost'
+    config_dir = ROOT / 'src/auto_drive_sim/config'
+    config, config_path, road, launch_env = make_straight_track(processes, output)
+
+    center = config['track']['curve_radius_m']
+    width = config['track']['lane_width_m'] + config['track']['marking_width_m']
+    start_y = center + (0.5 if source == 'leftmost' else -0.5) * width
+    world = straight_scenario_world(ROOT / 'src/auto_drive_sim/worlds/car_world_two_lane.sdf',
+                                    output, road, start_y)
+    started_ns = time.time_ns()
+    launch = ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
+              'gui:=false', 'controller:=false', f'lane_strategy:={source}', f'world:={world}']
+    if source != target:
+        launch.append(f'lane_change_to:={target}')
+    processes.start('launch', launch, env=launch_env)
+    processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
+        '-p', f'config_file:={config_dir / "eval_bridge.yaml"}'])
+    acknowledgement = ready(processes, output, 'lane', args.startup_timeout)
+    evidence = render_proof(processes, output, started_ns)
+    probe = processes.start('probe', [sys.executable, 'tools/lane_scenario_probe.py',
+        str(output), str(center), str(width), source, target, '--ros-args', '-p', 'use_sim_time:=true'])
+    processes.wait_file(output / 'probe-ready.json', args.startup_timeout)
+    processes.start('controller', ['ros2', 'run', 'auto_drive_sim', 'lane_controller',
+        '--ros-args', '-p', 'use_sim_time:=true', '-p', 'target_speed_mps:=1.2'])
+    processes.wait_for(probe, args.scenario_timeout)
+    result = require_result(output / 'result.json', ('pass', 'divider_crossings'))
+    return {'readiness': acknowledgement, 'renderer': evidence,
+            'world_sha256': hashlib.sha256(world.read_bytes()).hexdigest(),
+            'track_sha256': hashlib.sha256(config_path.read_bytes()).hexdigest(),
+            'result': result}
 
 
 def execute(args, output):
@@ -229,7 +299,7 @@ def execute(args, output):
 
             def environment(processes, directory):
                 command = [sys.executable, 'tools/native_runtime.py', '--output', str(directory / 'environment.json')]
-                if args.mode in ('scenarios', 'lead'):
+                if args.mode in ('scenarios', 'lead', 'lanes'):
                     command.append('--project')
                 processes.command('preflight', command, 60)
                 return require_result(directory / 'environment.json', ('architecture', 'ros_bundle_version', 'gazebo'))
@@ -263,18 +333,24 @@ def execute(args, output):
                         failed.append(scenario)
                 if failed:
                     raise ValidationError(f'Scenarios did not meet lap criteria: {", ".join(failed)}')
-            elif args.mode == 'lead':
+            elif args.mode in ('lead', 'lanes'):
                 failed = []
-                for scenario in ('static', 'moving', 'loss'):
+                if args.mode == 'lead':
+                    scenarios = args.lead_case or ('static', 'moving', 'braking', 'loss')
+                    step_action = lead_step
+                else:
+                    scenarios = ('select-left', 'change-left', 'change-right')
+                    step_action = lane_step
+                for scenario in scenarios:
                     scoped_step(output / scenario,
-                        lambda p, d, s=scenario: lead_step(p, d, args, s), report, scenario)
+                        lambda p, d, s=scenario: step_action(p, d, args, s), report, scenario)
                     step = report['steps'][-1]
                     if step['result']['pass'] is not True:
-                        step.update(status='failed', error='Longitudinal criteria were not met')
+                        step.update(status='failed', error='Scenario criteria were not met')
                         write_json(output / scenario / 'validation.json', step)
                         failed.append(scenario)
                 if failed:
-                    raise ValidationError(f'Lead scenarios did not meet criteria: {", ".join(failed)}')
+                    raise ValidationError(f'Scenarios did not meet criteria: {", ".join(failed)}')
             if source_manifest() != manifest:
                 raise ValidationError('Source files changed during validation; rerun a stable revision')
             report['status'] = 'passed'
@@ -296,7 +372,9 @@ def execute(args, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['preflight', 'startup', 'camera', 'scenarios', 'lead'])
+    parser.add_argument('mode', choices=['preflight', 'startup', 'camera', 'scenarios', 'lead', 'lanes'])
+    parser.add_argument('--lead-case', choices=('static', 'moving', 'braking', 'loss'), nargs='+',
+                        help='Run selected lead-vehicle cases')
     parser.add_argument('--duration', type=float, default=60)
     parser.add_argument('--repetitions', type=int, default=10)
     parser.add_argument('--domain', type=int, default=int(os.environ.get('NATIVE_ROS_DOMAIN_ID', '72')))
@@ -310,6 +388,8 @@ def main():
     args = parser.parse_args()
     if args.tight_worn and args.mode != 'scenarios':
         parser.error('--tight-worn requires scenarios mode')
+    if args.lead_case and (args.mode != 'lead' or len(set(args.lead_case)) != len(args.lead_case)):
+        parser.error('--lead-case requires lead mode and distinct cases')
     if min(args.duration, args.repetitions, args.startup_timeout, args.scenario_timeout) <= 0:
         parser.error('Durations, timeouts, and repetitions must be positive')
     base = ROOT / 'artifacts/native-validation'

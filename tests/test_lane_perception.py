@@ -184,6 +184,29 @@ def test_rightmost_lane_selection():
     assert result.lane_width_m == pytest.approx(3.62, abs=0.15)
 
 
+def test_lane_change_needs_three_visible_boundaries():
+    image = np.full((360, 640, 3), 90, dtype=np.uint8)
+    for lateral in (-3.62, 0.0, 3.62):
+        points = [GROUND.project(float(x), lateral) for x in np.linspace(4.0, 12.0, 60)]
+        cv2.polylines(image, [np.array(points, dtype=np.int32)], False,
+                      (235, 235, 235), 3, cv2.LINE_AA)
+    for fraction, expected in ((0.0, -1.81), (0.5, 0.0), (1.0, 1.81)):
+        result = lane_perception.adjacent_lane_target(image, GROUND, CONFIG, 'rightmost', fraction)
+        assert result.valid
+        assert result.target_y_m == pytest.approx(expected, abs=0.1)
+    image[:, 400:] = 90
+    rejected = lane_perception.adjacent_lane_target(image, GROUND, CONFIG, 'rightmost', 0.5)
+    assert not rejected.valid
+    assert rejected.reason == 'adjacent_lane_unconfirmed'
+
+
+def test_lane_change_joins_fragmented_far_marking():
+    from_left = lane_perception.adjacent_lane_target(
+        _frame('lane_change_outer_fragments.png'), GROUND, CONFIG, 'leftmost', 1.0)
+    assert from_left.valid
+    assert from_left.target_y_m == pytest.approx(-3.73, abs=0.2)
+
+
 def test_dashed_frame_groups_multiple_pieces():
     """A dashed frame must combine pieces from both boundaries."""
     mask = lane_perception.threshold_markings(

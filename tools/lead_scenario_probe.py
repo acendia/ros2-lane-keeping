@@ -38,22 +38,23 @@ def separation(ego, lead, lead_length):
 
 
 class LeadProbe(Node):
-    def __init__(self, mode, output, world):
+    def __init__(self, mode, output, world, centerline):
         super().__init__('lead_scenario_probe')
         self.mode, self.output = mode, output
+        self.moving = mode in ('moving', 'braking')
         self.ego, self.lead = {}, {}
         self.estimates, self.commands, self.speed = [], [], []
         self.started = None
         self.cut_requested_at = None
         self.ready = False
         self.done = False
-        if mode != 'moving':
+        if not self.moving:
             model = ET.parse(world).find('./world/model[@name="lead_vehicle"]')
             x, y, _, _, _, yaw = map(float, model.findtext('pose').split())
             self.static_pose = (x, y, yaw)
             self.static_length = float(model.findtext('link/collision/geometry/box/size').split()[0])
         share = Path(get_package_share_directory('auto_drive_sim'))
-        self.track = np.loadtxt(share / 'models/road_two_lane/centerline.csv',
+        self.track = np.loadtxt(centerline or share / 'models/road_two_lane/centerline.csv',
                                 delimiter=',', skiprows=1, usecols=(1, 2, 3))
         self.create_subscription(PoseStamped, '/evaluation/ego_pose',
                                  lambda msg: self.record_pose(self.ego, msg), 30)
@@ -88,7 +89,7 @@ class LeadProbe(Node):
     def tick(self):
         now = self.get_clock().now().nanoseconds * 1e-9
         detected = self.estimates and self.estimates[-1]['distance_m'] is not None
-        if not self.ready and self.ego and detected and (self.lead or self.mode != 'moving'):
+        if not self.ready and self.ego and detected and (self.lead or not self.moving):
             write_json(self.output / 'probe-ready.json', {'ready': True, 'stamp_s': now})
             self.ready = True
         if self.started is None:
@@ -97,16 +98,16 @@ class LeadProbe(Node):
                 self.commands[-1]['command_speed_mps'] >= 0.3):
             write_json(self.output / 'cut-detector.json', {'stamp_s': now})
             self.cut_requested_at = now
-        duration = {'static': 36.0, 'moving': 60.0, 'loss': 10.0}[self.mode]
+        duration = {'static': 36.0, 'moving': 60.0, 'braking': 66.0, 'loss': 10.0}[self.mode]
         if now - self.started >= duration:
             self.finish(now)
 
     def finish(self, now):
         times = sorted(t for t in self.ego if self.started <= t <= now)
-        length = 3.8 if self.mode == 'moving' else self.static_length
+        length = 3.8 if self.moving else self.static_length
         rows = []
         for t in times:
-            lead = self.lead.get(t) if self.mode == 'moving' else self.static_pose
+            lead = self.lead.get(t) if self.moving else self.static_pose
             if lead is None:
                 continue
             ego = self.ego[t]
@@ -138,6 +139,10 @@ class LeadProbe(Node):
         following_distances = [e['distance_m'] for e in self.estimates
                                if now - 10 <= e['stamp_s'] <= now and e['distance_m'] is not None]
         expected_range = config.lead_follow_gap_m + 1.0 / config.lead_speed_gain
+        lead_speeds = [(b[0] - self.started,
+                        float(np.hypot(b[4] - a[4], b[5] - a[5]) / (b[0] - a[0])))
+                       for a, b in zip(rows, rows[1:])]
+        braking_speeds = {}
         if self.mode == 'static':
             case_pass = (settled and stopped and final_state == 'lead_vehicle' and
                          final_camera_fresh and abs(final_camera - config.lead_follow_gap_m) <= 0.25)
@@ -146,6 +151,16 @@ class LeadProbe(Node):
                          len(following_distances) >= 120 and
                          all(abs(distance - expected_range) <= 0.75 for distance in following_distances) and
                          len(final_speed) >= 30 and all(0.8 <= speed <= 1.2 for speed in final_speed))
+        elif self.mode == 'braking':
+            for label, begin, end in (('initial', 3, 13), ('slowed', 22, 30), ('final', 60, 66)):
+                window = [speed for elapsed, speed in lead_speeds if begin <= elapsed <= end]
+                if window:
+                    braking_speeds[label] = float(np.median(window))
+            case_pass = (0.8 <= braking_speeds.get('initial', -1) <= 1.2 and
+                         0.3 <= braking_speeds.get('slowed', -1) <= 0.6 and
+                         0 <= braking_speeds.get('final', -1) <= 0.05 and
+                         settled and stopped and final_state == 'lead_vehicle' and
+                         final_camera_fresh and abs(final_camera - config.lead_follow_gap_m) <= 0.25)
         else:
             case_pass = (self.cut_requested_at is not None and settled and stopped and
                          final_state == 'stale_lead_estimate' and delay is not None and
@@ -162,6 +177,7 @@ class LeadProbe(Node):
                                         if following_distances else None),
             'stale_stop_delay_s': delay, 'final_state': final_state,
             'max_final_2s_speed_mps': max(final_speed, default=None),
+            'braking_lead_speeds_mps': braking_speeds,
         }
         with (self.output / 'trajectory.csv').open('w', newline='') as stream:
             writer = csv.writer(stream, lineterminator='\n')
@@ -177,12 +193,13 @@ class LeadProbe(Node):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=('static', 'moving', 'loss'))
+    parser.add_argument('mode', choices=('static', 'moving', 'braking', 'loss'))
     parser.add_argument('output', type=Path)
     parser.add_argument('world', type=Path)
+    parser.add_argument('--centerline', type=Path)
     args, ros_args = parser.parse_known_args()
     rclpy.init(args=ros_args)
-    node = LeadProbe(args.mode, args.output, args.world)
+    node = LeadProbe(args.mode, args.output, args.world, args.centerline)
     try:
         while rclpy.ok() and not node.done:
             rclpy.spin_once(node, timeout_sec=0.1)

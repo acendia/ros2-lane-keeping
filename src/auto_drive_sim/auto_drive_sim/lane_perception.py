@@ -1,7 +1,7 @@
 """Lane perception from the forward camera."""
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 import math
 from typing import Optional
 
@@ -347,6 +347,9 @@ def extract_boundary_points(mask: np.ndarray, ground: GroundPlane,
     if config.lane_strategy == 'rightmost' and len(components) > 2:
         components = sorted(
             components, key=lambda component: component.y_center_m)[:2]
+    elif config.lane_strategy == 'leftmost' and len(components) > 2:
+        components = sorted(
+            components, key=lambda component: component.y_center_m)[-2:]
     return _join_points(components, config)
 
 
@@ -506,6 +509,45 @@ def analyze_frame(image: np.ndarray, ground: GroundPlane,
     return recovered if recovered.valid else result
 
 
+def adjacent_lane_target(image, ground, config, source, fraction):
+    """Blend camera targets from three visible boundaries on the two-lane road."""
+    mask = threshold_markings(image, config, use_local=False)
+    pieces = sorted(_marking_components(mask, ground, config),
+                    key=lambda piece: piece.y_center_m)
+    groups = []
+    for piece in pieces:
+        # Rasterization can split the outer stripe into narrow aligned pieces.
+        if groups and piece.y_center_m - groups[-1][0].y_center_m <= 0.4:
+            groups[-1].append(piece)
+        else:
+            groups.append([piece])
+    fits = []
+    for group in groups:
+        fit = fit_boundary(np.concatenate([piece.x_values for piece in group]),
+                           np.concatenate([piece.y_values for piece in group]), config)
+        if fit is not None:
+            fits.append(fit)
+    if len(fits) != 3:
+        return _invalid('adjacent_lane_unconfirmed')
+    # The far boundary of the opposite lane enters the camera farther ahead.
+    x = max(6.0, config.target_distance_m, *(fit.x_min_m for fit in fits))
+    if x > 9.0 or any(x > fit.x_max_m for fit in fits):
+        return _invalid('adjacent_lane_unconfirmed')
+    right, divider, left = (fit.evaluate(x) for fit in fits)
+    widths = (divider - right, left - divider)
+    if not all(config.min_separation_m <= width <= config.max_separation_m for width in widths):
+        return _invalid('adjacent_lane_unconfirmed')
+    right_center, left_center = (right + divider) / 2, (divider + left) / 2
+    # Quintic blending gives zero slope at each end of the transition.
+    blend = fraction ** 3 * (10 + fraction * (-15 + 6 * fraction))
+    weight = blend if source == 'rightmost' else 1 - blend
+    target = (1 - weight) * right_center + weight * left_center
+    confidence = max(0.0, 1.0 - max(fit.rms_m for fit in fits) / config.max_fit_rms_m)
+    return PerceptionResult(True, float(confidence), float(target), ground.camera.x_offset_m + x,
+                            float(target), float(min(widths)), '',
+                            left_fit=fits[2], right_fit=fits[0])
+
+
 def make_debug_image(image: np.ndarray, result: PerceptionResult,
                      ground: GroundPlane, config: PerceptionConfig,
                      label_suffix: str = '') -> np.ndarray:
@@ -557,9 +599,26 @@ class LanePerception(Node):
         super().__init__('lane_perception')
         self.camera = CameraModel()
         self.declare_parameter('lane_strategy', 'single')
+        self.declare_parameter('lane_change_to', '')
+        self.declare_parameter('lane_change_delay_s', 4.0)
+        self.declare_parameter('lane_change_duration_s', 8.0)
         self.config = PerceptionConfig(
             lane_strategy=self.get_parameter(
                 'lane_strategy').value)
+        self.lane_change_to = self.get_parameter('lane_change_to').value
+        self.change_delay = self.get_parameter('lane_change_delay_s').value
+        self.change_duration = self.get_parameter('lane_change_duration_s').value
+        if self.config.lane_strategy not in ('single', 'leftmost', 'rightmost'):
+            raise ValueError('lane_strategy must be single, leftmost, or rightmost')
+        if self.lane_change_to and (self.lane_change_to not in ('leftmost', 'rightmost') or
+                                    self.config.lane_strategy not in ('leftmost', 'rightmost') or
+                                    self.lane_change_to == self.config.lane_strategy or
+                                    not math.isfinite(self.change_delay) or self.change_delay < 0 or
+                                    not math.isfinite(self.change_duration) or self.change_duration <= 0):
+            raise ValueError('A lane change requires opposite lanes and a positive duration')
+        self.first_valid_stamp = None
+        self.change_elapsed = 0.0
+        self.change_stamp = None
         self.ground = GroundPlane(self.camera)
         self.bridge = CvBridge()
         self.estimate_publisher = self.create_publisher(
@@ -580,10 +639,27 @@ class LanePerception(Node):
             message.header.stamp.nanosec * 1e-9)
         now_s = self.get_clock().now().nanoseconds * 1e-9
         image = self.bridge.imgmsg_to_cv2(message, desired_encoding='bgr8')
+        changing = (self.lane_change_to and self.first_valid_stamp is not None and
+                    stamp_s - self.first_valid_stamp >= self.change_delay)
         if is_stale(stamp_s, now_s, self.config.max_image_age_s):
             result = _invalid('stale_image')
+        elif changing:
+            delta = 0.0 if self.change_stamp is None else stamp_s - self.change_stamp
+            elapsed = min(self.change_duration, self.change_elapsed + max(0.0, min(delta, 0.1)))
+            result = adjacent_lane_target(image, self.ground, self.config, self.config.lane_strategy,
+                                          elapsed / self.change_duration)
+            self.change_stamp = stamp_s if result.valid else None
+            if result.valid:
+                self.change_elapsed = elapsed
+                if elapsed >= self.change_duration:
+                    self.config = replace(self.config, lane_strategy=self.lane_change_to)
+                    self.lane_change_to = ''
         else:
             result = analyze_frame(image, self.ground, self.config)
+        if result.valid and self.first_valid_stamp is None:
+            self.first_valid_stamp = stamp_s
+        if changing and not result.valid:
+            self.change_stamp = None
 
         diagnostic = String()
         diagnostic.data = json.dumps({'image_stamp_s': stamp_s, 'valid': result.valid,
@@ -606,7 +682,7 @@ class LanePerception(Node):
             self.estimate_publisher.publish(estimate)
             debug_result = result
             suffix = ''
-        elif within_hold(
+        elif not changing and within_hold(
                 self.last_valid_stamp_s, stamp_s,
                 self.config.hold_last_valid_s):
             held = deepcopy(self.last_valid_estimate)

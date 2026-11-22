@@ -27,6 +27,7 @@ class LeadDriver(Node):
         """Load the centerline and create the odometry subscription."""
         super().__init__('lead_driver')
         self.declare_parameter('target_speed_mps', 1.0)
+        self.declare_parameter('braking_scenario', False)
         self.declare_parameter('lookahead_m', 4.0)
         self.declare_parameter('start_x', 5.0)
         self.declare_parameter('start_y', 13.19)
@@ -35,6 +36,8 @@ class LeadDriver(Node):
         self.declare_parameter('max_yaw_rate_radps', 0.6)
         self.target_speed = float(
             self.get_parameter('target_speed_mps').value)
+        self.braking_scenario = self.get_parameter('braking_scenario').value
+        self.started_s = None
         self.lookahead = float(self.get_parameter('lookahead_m').value)
         self.start_x = float(self.get_parameter('start_x').value)
         self.start_y = float(self.get_parameter('start_y').value)
@@ -72,6 +75,17 @@ class LeadDriver(Node):
         now_s = self.get_clock().now().nanoseconds * 1e-9
         if self.odometry is None or self.odometry_stamp_s is None or \
                 now_s - self.odometry_stamp_s > 0.3:
+            self.publisher.publish(command)
+            return
+
+        if self.braking_scenario:
+            # This scripted profile runs on the straight section of its test world.
+            if self.started_s is None:
+                self.started_s = now_s
+            elapsed = now_s - self.started_s
+            slow = min(max(elapsed - 20.0, 0.0), 1.0)
+            brake = min(max(elapsed - 35.0, 0.0), 1.0)
+            command.linear.x = self.target_speed * max(0.0, 1.0 - 0.55 * slow - 0.45 * brake)
             self.publisher.publish(command)
             return
 

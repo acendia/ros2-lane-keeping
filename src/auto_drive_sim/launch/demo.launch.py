@@ -20,6 +20,10 @@ from ros_gz_bridge.actions import RosGzBridge
 def _start_gazebo(context):
     gui = LaunchConfiguration('gui').perform(context).lower() in (
         '1', 'true', 'yes')
+    if LaunchConfiguration('lane_change_to').perform(context) and any(
+            LaunchConfiguration(arg).perform(context).lower() in ('1', 'true', 'yes')
+            for arg in ('lead_detector', 'lead_driver')):
+        raise ValueError('The lane-change scenario requires an empty road')
     share = get_package_share_directory('auto_drive_sim')
     world_arg = LaunchConfiguration('world').perform(context)
     world = world_arg if os.path.isabs(world_arg) else \
@@ -78,8 +82,10 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'lane_strategy',
             default_value='single',
-            description='Lane selection: single or rightmost.',
+            description='Lane selection on the chosen world: single, rightmost, or leftmost.',
         ),
+        DeclareLaunchArgument('lane_change_to', default_value='',
+                              description='Optional one-time lane change on the empty two-lane test road.'),
         DeclareLaunchArgument(
             'lead_detector',
             default_value='false',
@@ -90,6 +96,7 @@ def generate_launch_description():
             default_value='false',
             description='Start the moving lead-car driver and bridge.',
         ),
+        DeclareLaunchArgument('lead_braking_scenario', default_value='false'),
         OpaqueFunction(function=_start_gazebo),
         RosGzBridge(
             bridge_name='car_bridge',
@@ -110,6 +117,8 @@ def generate_launch_description():
                         'use_sim_time': True,
                         'start_x': 5.0,
                         'start_y': 13.19,
+                        'braking_scenario': ParameterValue(
+                            LaunchConfiguration('lead_braking_scenario'), value_type=bool),
                     }],
                 ),
             ],
@@ -121,6 +130,7 @@ def generate_launch_description():
             parameters=[{
                 'use_sim_time': True,
                 'lane_strategy': LaunchConfiguration('lane_strategy'),
+                'lane_change_to': ParameterValue(LaunchConfiguration('lane_change_to'), value_type=str),
             }],
         ),
         Node(
