@@ -121,7 +121,7 @@ class Evaluator(Node):
         self.start = np.array([
             self.get_parameter('start_x').value,
             self.get_parameter('start_y').value,
-            -0.02,
+            self.get_parameter('start_yaw').value,
         ])
         self.output_dir = Path(self.get_parameter('output_dir').value)
         self.timeout_s = self.get_parameter('timeout_s').value

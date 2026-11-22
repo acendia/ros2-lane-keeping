@@ -111,12 +111,43 @@ def camera_step(processes, output, args, timing=True):
 
 def scenario_step(processes, output, args, scenario, offset):
     world = output / 'world.sdf'
+    start_y = 15.0
+    yaw = 0.0
+    model_path = None
+    track_hashes = {}
+    evaluator_track = []
+    track = ROOT / 'src/auto_drive_sim/config/track_tight_worn.yaml'
+    if args.tight_worn:
+        model_path = output / 'models'
+        road = model_path / 'road_tight_worn'
+        processes.command('track', [sys.executable, 'tools/generate_track.py',
+            '--config', str(track), '--output', str(road)], 15)
+        generated = require_result(road / 'track_meta.json', ('start_pose',))
+        track_hashes = {
+            str(path.relative_to(road)): hashlib.sha256(path.read_bytes()).hexdigest()
+            for path in sorted(road.rglob('*')) if path.is_file()
+        }
+        start_y = generated['start_pose']['y_m']
+        yaw = -0.08 if offset > 0 else 0.08 if offset < 0 else 0.0
+        evaluator_track = ['-p', f'centerline_path:={road / "centerline.csv"}',
+                           '-p', f'track_config_path:={track}']
     processes.command('world', [sys.executable, 'tools/make_scenario_world.py',
         '--offset', str(offset), '--output', str(world), '--source-world',
-        str(ROOT / 'src/auto_drive_sim/worlds' / args.world)], 10)
+        str(ROOT / 'src/auto_drive_sim/worlds' / args.world),
+        '--start-y', str(start_y)], 10)
+    launch = ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
+              'gui:=false', 'controller:=false', f'world:={world}']
+    if model_path is not None:
+        sdf = ET.parse(world)
+        includes = {include.findtext('name'): include for include in sdf.findall('./world/include')}
+        includes['road'].find('uri').text = 'model://road_tight_worn'
+        includes['car'].find('pose').text = f'-10 {start_y + offset} 0.05 0 0 {yaw}'
+        sdf.write(world, encoding='utf-8')
+        existing = os.environ.get('GZ_SIM_RESOURCE_PATH')
+        resources = os.pathsep.join([str(model_path), existing] if existing else [str(model_path)])
+        launch = ['env', f'GZ_SIM_RESOURCE_PATH={resources}', *launch]
     started_ns = time.time_ns()
-    processes.start('launch', ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
-        'gui:=false', 'controller:=false', f'world:={world}'])
+    processes.start('launch', launch)
     processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
         '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/eval_bridge.yaml"}'])
     acknowledgement = ready(processes, output, 'lane', args.startup_timeout)
@@ -124,8 +155,9 @@ def scenario_step(processes, output, args, scenario, offset):
     evaluator_ready = output / 'evaluator-ready.json'
     evaluator = processes.start('evaluator', ['ros2', 'run', 'auto_drive_sim', 'evaluator',
         '--ros-args', '-p', 'use_sim_time:=true', '-p', f'scenario:={scenario}',
-        '-p', f'start_y:={15.0 + offset}', '-p', f'output_dir:={output}',
-        '-p', f'ready_file:={evaluator_ready}', '-p', 'timeout_s:=130.0'])
+        '-p', f'start_y:={start_y + offset}', '-p', f'lane_center_y:={start_y}',
+        '-p', f'start_yaw:={yaw}', '-p', f'output_dir:={output}',
+        '-p', f'ready_file:={evaluator_ready}', '-p', 'timeout_s:=130.0', *evaluator_track])
     evaluator_ack = processes.wait_file(evaluator_ready, args.startup_timeout)
     if evaluator_ack.get('ready') is not True:
         raise ValidationError('Evaluator has not processed a pose')
@@ -135,13 +167,16 @@ def scenario_step(processes, output, args, scenario, offset):
     processes.wait_for(evaluator, args.scenario_timeout)
     result = require_result(output / 'result.json', (
         'lap_complete', 'footprint_crossing', 'lateral_error_p95_abs_m', 'duration_s', 'samples'))
-    if (result['lap_complete'] is not True or result['footprint_crossing'] is not False or
-            not 0 <= result['lateral_error_p95_abs_m'] < 0.35 or result['samples'] < 2):
-        raise ValidationError(f'{scenario} did not meet the baseline lap target')
     return {'readiness': acknowledgement, 'evaluator_ready': evaluator_ack, 'renderer': evidence,
+            'generated_track_sha256': track_hashes,
             'world_sha256': hashlib.sha256(world.read_bytes()).hexdigest(),
             'evaluation_wall_s': time.monotonic() - started, 'simulation_duration_s': result['duration_s'],
             'result': result}
+
+
+def lap_passed(result):
+    return (result['lap_complete'] is True and result['footprint_crossing'] is False and
+            0 <= result['lateral_error_p95_abs_m'] < 0.35 and result['samples'] >= 2)
 
 
 def execute(args, output):
@@ -181,15 +216,17 @@ def execute(args, output):
                     scoped_step(output / f'camera-{index + 1:02}',
                         lambda p, d: camera_step(p, d, args, args.mode == 'camera'), report, f'camera-{index + 1:02}')
             elif args.mode == 'scenarios':
+                failed = []
                 for scenario, offset in [('center', 0.0), ('left', 0.3), ('right', -0.3)]:
                     scoped_step(output / scenario,
                         lambda p, d, s=scenario, o=offset: scenario_step(p, d, args, s, o), report, scenario)
-                summary = Processes(output)
-                try:
-                    summary.command('summary', [sys.executable, 'tools/summarize_results.py',
-                        '--results-dir', str(output), '--environment', 'Native macOS arm64, verified hardware Metal.'], 15)
-                finally:
-                    summary.close()
+                    step = report['steps'][-1]
+                    if not lap_passed(step['result']):
+                        step.update(status='failed', error='Lap acceptance criteria were not met')
+                        write_json(output / scenario / 'validation.json', step)
+                        failed.append(scenario)
+                if failed:
+                    raise ValidationError(f'Scenarios did not meet lap criteria: {", ".join(failed)}')
             if source_manifest() != manifest:
                 raise ValidationError('Source files changed during validation; rerun a stable revision')
             report['status'] = 'passed'
@@ -219,8 +256,12 @@ def main():
     parser.add_argument('--scenario-timeout', type=float, default=420)
     parser.add_argument('--world', choices=['car_world.sdf', 'car_world_lighting.sdf'],
                         default='car_world.sdf', help='Scenario world for lane-keeping evaluation')
+    parser.add_argument('--tight-worn', action='store_true',
+                        help='Generate a tighter oval with a narrower lane and worn markings')
     parser.add_argument('--require-clean', action='store_true')
     args = parser.parse_args()
+    if args.tight_worn and args.mode != 'scenarios':
+        parser.error('--tight-worn requires scenarios mode')
     if min(args.duration, args.repetitions, args.startup_timeout, args.scenario_timeout) <= 0:
         parser.error('Durations, timeouts, and repetitions must be positive')
     base = ROOT / 'artifacts/native-validation'

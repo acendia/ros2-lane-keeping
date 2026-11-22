@@ -1,0 +1,24 @@
+track_version: 4
+model_name: road_tight_worn
+track:
+  straight_length_m: 20.0
+  curve_radius_m: 13.0
+  lane_width_m: 3.3
+  marking_width_m: 0.16
+  shoulder_width_m: 0.75
+  sample_spacing_m: 0.10
+  asphalt_height_m: 0.005
+  marking_height_m: 0.012
+  asphalt_color_rgb: [0.22, 0.22, 0.24]
+  marking_color_rgb: [0.95, 0.95, 0.95]
+markings:
+  style: dashed
+  dash_length_m: 3.0
+  gap_length_m: 0.75
+  worn_every: 3
+  worn_gap_m: 0.18
+  worn_width_scale: 0.75
+  worn_color_rgb: [0.78, 0.78, 0.74]
+start_pose:
+  s_m: 0.0
+  z_m: 0.05
