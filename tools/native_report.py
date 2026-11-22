@@ -43,6 +43,18 @@ def render_report(report, metadata=None):
             lines.append(f'| [{step["name"]}]({step["name"]}/result.json) | {step["status"]} | '
                          f'{lap if lap is not None else "missing"} | {error if error is not None else "missing"} | '
                          f'{result.get("footprint_crossing", "missing")} | {result.get("stop_events", "missing")} | {step.get("cleanup", "unknown")} |')
+    if report['mode'] == 'lead':
+        lines += ['| Scenario | Status | Duration (sim s) | Min footprint gap bound (m) | Final state |',
+                  '|---|---|---:|---:|---|']
+        for step in report['steps']:
+            if step['name'] == 'preflight':
+                continue
+            result = step.get('result', {})
+            duration = result.get('duration_s', 'missing')
+            gap = result.get('minimum_footprint_separation_bound_m')
+            gap_text = f'{gap:.3f}' if gap is not None else 'missing'
+            lines.append(f'| [{step["name"]}]({step["name"]}/result.json) | {step["status"]} | '
+                         f'{duration} | {gap_text} | {result.get("final_state", "missing")} |')
     return '\n'.join(lines) + '\n'
 
 
@@ -75,7 +87,14 @@ def export_run(source, output):
         required = ['validation.json', 'environment.json'] if name == 'preflight' else [
             'validation.json', 'ready.json', 'renderer.json']
         if name != 'preflight':
-            required += ['result.json', 'lateral_error.csv', 'evaluator-ready.json'] if report['mode'] == 'scenarios' else ['image.json', 'frame.png']
+            if report['mode'] == 'scenarios':
+                required += ['result.json', 'lateral_error.csv', 'evaluator-ready.json']
+            elif report['mode'] == 'lead':
+                required += ['result.json', 'trajectory.csv', 'telemetry.json', 'probe-ready.json']
+                if name == 'loss':
+                    required.append('cut-detector.json')
+            else:
+                required += ['image.json', 'frame.png']
             if report['mode'] == 'camera':
                 required.append('timing.json')
         if any(not (directory / file).is_file() for file in required):
@@ -95,12 +114,13 @@ def export_run(source, output):
         directory = output / name
         directory.mkdir()
         for file in ('validation.json', 'environment.json', 'ready.json', 'evaluator-ready.json',
-                     'renderer.json', 'timing.json', 'image.json', 'result.json'):
+                     'renderer.json', 'timing.json', 'image.json', 'result.json',
+                     'telemetry.json', 'probe-ready.json', 'cut-detector.json'):
             path = source / name / file
             if path.is_file():
                 value = json.loads(path.read_text())
                 (directory / file).write_text(json.dumps(public_json(value), indent=2) + '\n')
-        for file in ('frame.png', 'lateral_error.csv'):
+        for file in ('frame.png', 'lateral_error.csv', 'trajectory.csv'):
             path = source / name / file
             if path.is_file():
                 shutil.copy2(path, directory / file)

@@ -172,7 +172,7 @@ class LaneFollower:
                     speed_limit, self.config.recovery_speed_mps)
             else:
                 self.recovery_until_s = None
-        if lead_distance_m is not None and lead_age_s is not None and \
+        if self.config.lead_enabled and lead_distance_m is not None and lead_age_s is not None and \
                 lead_age_s <= self.config.lead_timeout_s:
             lead_limit = max(
                 0.0,
@@ -352,7 +352,8 @@ class LaneController(Node):
         message.angular.z = command.yaw_rate_radps
         diagnostic = String()
         diagnostic.data = json.dumps({'stamp_s': now_s, 'status': command.status,
-                                      'command_speed_mps': command.speed_mps})
+                                      'command_speed_mps': command.speed_mps,
+                                      'lead_stamp_s': self.lead_stamp_s})
         self.diagnostic_publisher.publish(diagnostic)
         self.publisher.publish(message)
         if command.status != self.last_status:

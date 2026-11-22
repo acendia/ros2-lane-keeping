@@ -152,6 +152,7 @@ def test_right_command():
 def test_lead_speed_cap():
     """A nearby lead vehicle must cap the speed."""
     config = lane_controller.ControllerConfig(
+        lead_enabled=True,
         target_speed_mps=2.0,
         max_acceleration_mps2=10.0,
         max_deceleration_mps2=10.0,
@@ -169,11 +170,18 @@ def test_lead_speed_cap():
 
 def test_lead_stop():
     """A lead vehicle inside the gap must stop the car."""
-    follower = lane_controller.LaneFollower(lane_controller.ControllerConfig())
+    follower = lane_controller.LaneFollower(lane_controller.ControllerConfig(lead_enabled=True))
     _ramp(follower)
     command = _update(follower, 2.0, lead_distance=5.5)
     assert command.status == 'lead_vehicle'
     assert command.speed_mps == 0.0
+
+
+def test_disabled_lead_mode_ignores_fresh_and_missing_observations():
+    follower = lane_controller.LaneFollower(CONFIG)
+    _ramp(follower)
+    assert _update(follower, 2.0, lead_distance=5.5).status == 'driving'
+    assert _update(follower, 2.1, lead_age=None).status == 'driving'
 
 
 def test_yaw_acceleration_limit():

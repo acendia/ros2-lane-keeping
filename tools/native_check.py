@@ -180,6 +180,41 @@ def lap_passed(result):
             0 <= result['lateral_error_p95_abs_m'] < 0.35 and result['samples'] >= 2)
 
 
+def lead_step(processes, output, args, scenario):
+    moving = scenario == 'moving'
+    suffix = '_moving_lead' if moving else '_lead'
+    world = ROOT / 'src/auto_drive_sim/worlds' / f'car_world_two_lane{suffix}.sdf'
+    started_ns = time.time_ns()
+    processes.start('launch', ['ros2', 'launch', 'auto_drive_sim', 'demo.launch.py',
+        'gui:=false', 'controller:=false', 'lane_strategy:=rightmost',
+        f'lead_driver:={str(moving).lower()}', f'world:={world}'])
+    processes.start('bridge', ['ros2', 'run', 'ros_gz_bridge', 'bridge_node', '--ros-args',
+        '-p', f'config_file:={ROOT / "src/auto_drive_sim/config/eval_bridge.yaml"}'])
+    if moving:
+        processes.start('lead-pose-bridge', ['ros2', 'run', 'ros_gz_bridge', 'parameter_bridge',
+            '/model/lead_vehicle/pose@geometry_msgs/msg/PoseStamped[gz.msgs.Pose',
+            '--ros-args', '-r', '/model/lead_vehicle/pose:=/evaluation/lead_pose'])
+    acknowledgement = ready(processes, output, 'lane', args.startup_timeout)
+    evidence = render_proof(processes, output, started_ns)
+    detector = processes.start('detector', [sys.executable, '-m', 'auto_drive_sim.lead_detector',
+        '--ros-args', '-p', 'use_sim_time:=true'], required=scenario != 'loss')
+    probe = processes.start('probe', [sys.executable, 'tools/lead_scenario_probe.py', scenario,
+        str(output), str(world), '--ros-args', '-p', 'use_sim_time:=true'])
+    processes.wait_file(output / 'probe-ready.json', args.startup_timeout)
+    processes.start('controller', ['ros2', 'run', 'auto_drive_sim', 'lane_controller',
+        '--ros-args', '-p', 'use_sim_time:=true', '-p', 'lead_enabled:=true'])
+    if scenario == 'loss':
+        processes.wait_file(output / 'cut-detector.json', args.startup_timeout)
+        if detector.poll() is not None:
+            raise ValidationError('Detector stopped before the requested fault')
+        detector.send_signal(signal.SIGINT)
+        processes.wait_for(detector, 5)
+    processes.wait_for(probe, args.scenario_timeout)
+    result = require_result(output / 'result.json', ('pass', 'pose_samples'))
+    return {'readiness': acknowledgement, 'renderer': evidence,
+            'world_sha256': hashlib.sha256(world.read_bytes()).hexdigest(), 'result': result}
+
+
 def execute(args, output):
     report = {'schema_version': 1, 'mode': args.mode, 'status': 'running',
               'started_utc': utc_now(), 'steps': [], 'settings': vars(args)}
@@ -194,7 +229,7 @@ def execute(args, output):
 
             def environment(processes, directory):
                 command = [sys.executable, 'tools/native_runtime.py', '--output', str(directory / 'environment.json')]
-                if args.mode == 'scenarios':
+                if args.mode in ('scenarios', 'lead'):
                     command.append('--project')
                 processes.command('preflight', command, 60)
                 return require_result(directory / 'environment.json', ('architecture', 'ros_bundle_version', 'gazebo'))
@@ -228,6 +263,18 @@ def execute(args, output):
                         failed.append(scenario)
                 if failed:
                     raise ValidationError(f'Scenarios did not meet lap criteria: {", ".join(failed)}')
+            elif args.mode == 'lead':
+                failed = []
+                for scenario in ('static', 'moving', 'loss'):
+                    scoped_step(output / scenario,
+                        lambda p, d, s=scenario: lead_step(p, d, args, s), report, scenario)
+                    step = report['steps'][-1]
+                    if step['result']['pass'] is not True:
+                        step.update(status='failed', error='Longitudinal criteria were not met')
+                        write_json(output / scenario / 'validation.json', step)
+                        failed.append(scenario)
+                if failed:
+                    raise ValidationError(f'Lead scenarios did not meet criteria: {", ".join(failed)}')
             if source_manifest() != manifest:
                 raise ValidationError('Source files changed during validation; rerun a stable revision')
             report['status'] = 'passed'
@@ -249,7 +296,7 @@ def execute(args, output):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('mode', choices=['preflight', 'startup', 'camera', 'scenarios'])
+    parser.add_argument('mode', choices=['preflight', 'startup', 'camera', 'scenarios', 'lead'])
     parser.add_argument('--duration', type=float, default=60)
     parser.add_argument('--repetitions', type=int, default=10)
     parser.add_argument('--domain', type=int, default=int(os.environ.get('NATIVE_ROS_DOMAIN_ID', '72')))
